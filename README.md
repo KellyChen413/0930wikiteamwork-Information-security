@@ -7,14 +7,18 @@
 | 檔案 | 說明 |
 | --- | --- |
 | `資安情境風險分析報告.html` | **主要成果。** 風險識別與分析總結報告（單一檔案、離線可用） |
-| `資安情境演練.html` | 舊版互動測驗（答題模式），已由上方報告取代，可視需要保留或刪除 |
+| `prompt.txt` | 產製報告網頁所使用的提示詞規格 |
 | `README.md` | 本說明文件 |
 
-資料來源：`D:\資安情境演練對應表.xlsx`（四個工作表，產出日期 2026-09-30）
+資料來源：資安情境演練對應表.xlsx（四個工作表，產出日期 2026-09-30）
 
 ## 使用方式
 
-直接以瀏覽器（Chrome、Edge、Firefox、Safari）開啟 `資安情境風險分析報告.html` 即可，不需安裝任何套件或連網。
+**線上瀏覽**：[開啟資安情境風險分析報告](https://ykk860413-oss.github.io/0930wikiteamwork-Information-security/資安情境風險分析報告.html)（GitHub Pages）
+
+原始碼：<https://github.com/ykk860413-oss/0930wikiteamwork-Information-security>
+
+**本機瀏覽**：下載 `資安情境風險分析報告.html` 後，以瀏覽器（Chrome、Edge、Firefox、Safari）開啟即可，不需安裝任何套件或連網。
 
 - 支援電腦、平板與手機螢幕
 - 可使用瀏覽器「列印」功能輸出為 PDF（列印時自動改為白底並隱藏導覽與篩選列）
