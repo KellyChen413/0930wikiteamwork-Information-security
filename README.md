@@ -14,9 +14,9 @@
 
 ## 使用方式
 
-**線上瀏覽**：[開啟資安情境風險分析報告](https://ykk860413-oss.github.io/0930wikiteamwork-Information-security/資安情境風險分析報告.html)（GitHub Pages）
+**線上瀏覽**：[開啟資安情境風險分析報告](https://kellychen413.github.io/0930wikiteamwork-Information-security/資安情境風險分析報告.html)（GitHub Pages）
 
-原始碼：<https://github.com/ykk860413-oss/0930wikiteamwork-Information-security>
+原始碼：<https://github.com/KellyChen413/0930wikiteamwork-Information-security>
 
 **本機瀏覽**：下載 `資安情境風險分析報告.html` 後，以瀏覽器（Chrome、Edge、Firefox、Safari）開啟即可，不需安裝任何套件或連網。
 
